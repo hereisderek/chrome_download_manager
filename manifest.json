@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Advanced Download Manager",
+  "version": "0.0.1",
+  "description": "Intercept downloads and route them to built-in, local, or remote download managers with cookie forwarding",
+  "author": "derek",
+  "homepage_url": "https://github.com/hereisderek",
+  "permissions": [
+    "downloads",
+    "cookies",
+    "storage",
+    "notifications",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

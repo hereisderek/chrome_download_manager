@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Choose Download Method</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Download Manager</h1>
+    
+    <div id="downloadInfo" class="download-info">
+      <div class="info-row">
+        <span class="label">URL:</span>
+        <span id="downloadUrl" class="value"></span>
+      </div>
+      <div class="info-row">
+        <span class="label">Filename:</span>
+        <span id="downloadFilename" class="value"></span>
+      </div>
+      <div class="info-row">
+        <span class="label">Size:</span>
+        <span id="downloadSize" class="value"></span>
+      </div>
+      <div class="info-row">
+        <span class="label">Cookies:</span>
+        <span id="cookieCount" class="value"></span>
+      </div>
+    </div>
+    
+    <div class="options">
+      <h2>Choose Download Method:</h2>
+      
+      <div class="option-group">
+        <button id="defaultBtn" class="option-btn default">
+          <span class="icon">🌐</span>
+          <span class="text">
+            <strong>Chrome Built-in</strong>
+            <small>Use default Chrome downloader</small>
+          </span>
+        </button>
+        
+        <button id="exportCurlBtn" class="option-btn export-curl">
+          <span class="icon">📋</span>
+          <span class="text">
+            <strong>Export as cURL</strong>
+            <small>Generate cURL command with cookies</small>
+          </span>
+        </button>
+      </div>
+      
+      <div class="option-group">
+        <h3>Local Downloaders</h3>
+        <div id="localDownloaders">
+          <p class="no-config">No local downloaders configured. <a href="#" id="openOptions">Configure now</a></p>
+        </div>
+      </div>
+      
+      <div class="option-group">
+        <h3>Remote Downloaders</h3>
+        <div id="remoteDownloaders">
+          <p class="no-config">No remote downloaders configured. <a href="#" id="openOptionsRemote">Configure now</a></p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="actions">
+      <button id="cancelBtn" class="cancel-btn">Cancel</button>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

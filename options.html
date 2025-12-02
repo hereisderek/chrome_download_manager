@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Download Manager Options</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Download Manager Configuration</h1>
+    
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="local">Local Downloaders</button>
+      <button class="tab-btn" data-tab="remote">Remote Downloaders</button>
+      <button class="tab-btn" data-tab="about">About</button>
+    </div>
+    
+    <div id="localTab" class="tab-content active">
+      <h2>Local Downloaders</h2>
+      <p class="description">Configure local download managers installed on your computer. The extension will generate commands with cookies that you can execute.</p>
+      
+      <div id="localDownloadersList"></div>
+      
+      <button id="addLocalBtn" class="add-btn">+ Add Local Downloader</button>
+      
+      <div id="localDownloaderForm" class="form-section hidden">
+        <h3>Add/Edit Local Downloader</h3>
+        <form id="localForm">
+          <input type="hidden" id="localIndex" value="-1">
+          
+          <div class="form-group">
+            <label for="localName">Name:</label>
+            <input type="text" id="localName" required placeholder="e.g., Free Download Manager">
+          </div>
+          
+          <div class="form-group">
+            <label for="localType">Type:</label>
+            <select id="localType" required>
+              <option value="fdm">Free Download Manager (FDM)</option>
+              <option value="idm">Internet Download Manager (IDM)</option>
+              <option value="curl">cURL</option>
+              <option value="wget">wget</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="localPath">Executable Path:</label>
+            <input type="text" id="localPath" required placeholder="e.g., /usr/local/bin/fdm or C:\Program Files\FDM\fdm.exe">
+            <small>Full path to the downloader executable</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="localDescription">Description (optional):</label>
+            <input type="text" id="localDescription" placeholder="Brief description">
+          </div>
+          
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="localEnabled" checked>
+              Enabled
+            </label>
+          </div>
+          
+          <div class="form-actions">
+            <button type="submit" class="save-btn">Save</button>
+            <button type="button" id="cancelLocalBtn" class="cancel-btn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <div id="remoteTab" class="tab-content">
+      <h2>Remote Downloaders</h2>
+      <p class="description">Configure remote download services. The extension will automatically send downloads with cookies to these services.</p>
+      
+      <div id="remoteDownloadersList"></div>
+      
+      <button id="addRemoteBtn" class="add-btn">+ Add Remote Downloader</button>
+      
+      <div id="remoteDownloaderForm" class="form-section hidden">
+        <h3>Add/Edit Remote Downloader</h3>
+        <form id="remoteForm">
+          <input type="hidden" id="remoteIndex" value="-1">
+          
+          <div class="form-group">
+            <label for="remoteName">Name:</label>
+            <input type="text" id="remoteName" required placeholder="e.g., My VPS Server">
+          </div>
+          
+          <div class="form-group">
+            <label for="remoteType">Type:</label>
+            <select id="remoteType" required>
+              <option value="curl">cURL (SSH)</option>
+              <option value="qbittorrent">qBittorrent Web UI</option>
+              <option value="aria2">aria2 RPC</option>
+            </select>
+          </div>
+          
+          <div id="curlFields" class="type-specific-fields">
+            <div class="form-group">
+              <label for="sshHost">SSH Host:</label>
+              <input type="text" id="sshHost" placeholder="e.g., example.com or 192.168.1.100">
+            </div>
+            
+            <div class="form-group">
+              <label for="sshUser">SSH User:</label>
+              <input type="text" id="sshUser" placeholder="e.g., root or username">
+            </div>
+          </div>
+          
+          <div id="qbittorrentFields" class="type-specific-fields hidden">
+            <div class="form-group">
+              <label for="qbWebUIUrl">Web UI URL:</label>
+              <input type="url" id="qbWebUIUrl" placeholder="e.g., http://192.168.1.100:8080">
+            </div>
+            
+            <div class="form-group">
+              <label for="qbUsername">Username:</label>
+              <input type="text" id="qbUsername">
+            </div>
+            
+            <div class="form-group">
+              <label for="qbPassword">Password:</label>
+              <input type="password" id="qbPassword">
+            </div>
+          </div>
+          
+          <div id="aria2Fields" class="type-specific-fields hidden">
+            <div class="form-group">
+              <label for="aria2RpcUrl">RPC URL:</label>
+              <input type="url" id="aria2RpcUrl" placeholder="e.g., http://192.168.1.100:6800/jsonrpc">
+            </div>
+            
+            <div class="form-group">
+              <label for="aria2Token">Secret Token (optional):</label>
+              <input type="text" id="aria2Token" placeholder="Your aria2 RPC secret">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="remoteDescription">Description (optional):</label>
+            <input type="text" id="remoteDescription" placeholder="Brief description">
+          </div>
+          
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="remoteEnabled" checked>
+              Enabled
+            </label>
+          </div>
+          
+          <div class="form-actions">
+            <button type="submit" class="save-btn">Save</button>
+            <button type="button" id="cancelRemoteBtn" class="cancel-btn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <div id="aboutTab" class="tab-content">
+      <h2>About</h2>
+      <p><strong>Advanced Download Manager</strong> v1.0.0</p>
+      <p>A Chrome extension that intercepts downloads and allows you to route them to various download managers with automatic cookie forwarding.</p>
+      
+      <h3>Author</h3>
+      <p><strong>derek</strong><br>
+      GitHub: <a href="https://github.com/hereisderek" target="_blank">https://github.com/hereisderek</a></p>
+      
+      <h3>Features</h3>
+      <ul>
+        <li>Intercept all downloads before they start</li>
+        <li>Route to Chrome's built-in downloader</li>
+        <li>Forward to local download managers (FDM, IDM, cURL, wget)</li>
+        <li>Send to remote downloaders (qBittorrent, aria2)</li>
+        <li>Automatic cookie extraction and forwarding</li>
+        <li>Referrer header support</li>
+      </ul>
+      
+      <h3>Usage</h3>
+      <ol>
+        <li>Configure your preferred downloaders in the settings</li>
+        <li>When you start a download, a popup will appear</li>
+        <li>Choose your preferred download method</li>
+        <li>The download will be forwarded with all necessary cookies</li>
+      </ol>
+      
+      <h3>Privacy</h3>
+      <p>This extension only accesses cookies for the specific URLs you download. Cookies are never sent to any third-party services except the downloaders you explicitly configure.</p>
+    </div>
+    
+    <div class="status-message hidden" id="statusMessage"></div>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html>
