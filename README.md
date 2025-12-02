@@ -15,6 +15,21 @@ A powerful Chrome extension that intercepts downloads and gives you complete con
 
 ## Installation
 
+### From Chrome Web Store (Coming Soon)
+
+Once published, you'll be able to install directly from the Chrome Web Store.
+
+### From GitHub Releases
+
+1. Go to [Releases](https://github.com/hereisderek/chrome_download_manager/releases)
+2. Download the latest `chrome_download_manager.zip`
+3. Extract the zip file
+4. Open Chrome and navigate to `chrome://extensions/`
+5. Enable "Developer mode" (toggle in top-right corner)
+6. Click "Load unpacked"
+7. Select the extracted folder
+8. The extension icon should appear in your toolbar
+
 ### From Source
 
 1. Clone or download this repository
@@ -236,6 +251,27 @@ No build step required - load directly as unpacked extension.
 3. Click a download link
 4. Verify popup appears with configured options
 5. Check console logs for debugging
+
+## Privacy Policy
+
+**Effective Date:** December 2, 2025
+
+This extension does not collect, store, or transmit any personal data.
+
+**What the extension accesses:**
+- Download URLs - temporarily processed to intercept and route downloads
+- Cookies - extracted from download domains and forwarded only to your configured download managers
+- User preferences - stored locally in your browser's sync storage
+
+**What we do NOT do:**
+- ❌ Collect or store any user data
+- ❌ Track your browsing activity
+- ❌ Send data to external servers (except your configured downloaders)
+- ❌ Use analytics or telemetry
+- ❌ Share information with third parties
+
+**Your data stays with you:**
+All processing happens locally on your device. Cookies and download information are only sent to download managers that YOU explicitly configure.
 
 ## Privacy & Security
 

@@ -1,0 +1,87 @@
+name: Publish to Chrome Web Store
+
+on:
+  push:
+    branches:
+      - publish
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from manifest
+        id: get_version
+        run: |
+          VERSION=$(jq -r '.version' manifest.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Create extension package
+        run: |
+          zip -r chrome_download_manager.zip . \
+            -x "*.git*" \
+            -x "*node_modules*" \
+            -x "*.DS_Store" \
+            -x "*.github/*" \
+            -x "*.vscode/*" \
+            -x "README.md" \
+            -x "LICENSE"
+          echo "Package created: chrome_download_manager.zip"
+          ls -lh chrome_download_manager.zip
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          release_name: Release v${{ steps.get_version.outputs.version }}
+          body: |
+            ## Advanced Download Manager v${{ steps.get_version.outputs.version }}
+            
+            Chrome extension for advanced download management with cookie forwarding.
+            
+            ### Installation
+            1. Download `chrome_download_manager.zip`
+            2. Extract the zip file
+            3. Open Chrome and go to `chrome://extensions/`
+            4. Enable "Developer mode"
+            5. Click "Load unpacked" and select the extracted folder
+            
+            ### Changes
+            See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation.
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./chrome_download_manager.zip
+          asset_name: chrome_download_manager.zip
+          asset_content_type: application/zip
+
+      - name: Publish to Chrome Web Store
+        uses: mnao305/chrome-extension-upload@v5.0.0
+        with:
+          file-path: chrome_download_manager.zip
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          publish: true
+
+      - name: Success Notification
+        if: success()
+        run: |
+          echo "✅ Successfully published v${{ steps.get_version.outputs.version }} to Chrome Web Store!"
+          echo "🔗 GitHub Release: ${{ steps.create_release.outputs.html_url }}"
