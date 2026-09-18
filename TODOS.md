@@ -1,81 +1,46 @@
-# Project Progress & TODOs
+# Project Roadmap & Major Milestones
 
-This file tracks active tasks, bugs, and upcoming features for the Chrome Download Manager extension.
+This document tracks major and semi-major features, capabilities, and roadmap items for the Chrome Download Manager extension.
 
 ---
 
-## Active TODOs & Bug Fixes
+## 🚀 Completed Major & Semi-Major Updates
 
-- [x] **Always show a link in the download popup to the config page**
-  - Ensure there is a permanent, persistent link/button in the download popup (e.g. in the footer or header) to open the extension Options page, regardless of whether any downloaders or templates are currently configured.
+### 1. Direct Free Download Manager (FDM) Integration & In-App Diagnostics
+- **Native Messaging & Protocol Integration**: Direct communication with FDM's native messaging host (`org.freedownloadmanager.fdm5.cnh`) with automatic cookie forwarding and fallback to the `fdm://` URL protocol scheme.
+- **In-App Diagnostic Suite**: Real-time diagnostic tool in Options checking official FDM extension status (`chrome.management`), native messaging authorization, and protocol scheme support.
+- **Educational Guide & Origin Helper**: Built-in interactive guidance modal explaining extension origin authorization on macOS/Windows, featuring a 1-click extension ID/origin copier and native host manifest paths.
 
-- [x] **Always show "Configure" button to the right of section headers with deep-linking**
-  - Display a "Configure" link/button to the right of:
-    - `Command templates` &rarr; opens options page focused on **Command Templates** (`#custom`)
-    - `Local downloaders` &rarr; opens options page focused on **Local Downloaders** (`#local`)
-    - `Remote downloaders` &rarr; opens options page focused on **Remote Downloaders** (`#remote`)
-  - Ensure clicking takes the user directly to the respective tab, not just the default options page.
+### 2. 1-Click Local Application Dispatch (Elimination of .txt files)
+- **Direct RPC & Local APIs**: Replaced manual `.txt` script generation with direct 1-click triggers for Motrix (`:16800`), Aria2 (`:6800`), and JDownloader 2 Click'n'Load (`:9666`).
+- **Custom OS Protocol Schemes**: Support for launching desktop downloaders via registered URL schemes (e.g. `motrix://`, `thunder://`, custom patterns).
+- **Type-Specific Dynamic Configuration**: Dynamic form fields in Options that display and persist only the parameters applicable to the selected downloader (RPC endpoint, secret token, or scheme pattern), keeping configurations clean.
 
-- [x] **Fix Extension Page Error: `Uncaught (in promise) Error: Unable to download all specified images.`**
-  - **Location**: `src/background/effects.ts` (`notify()`).
-  - **Root Cause**: `chrome.notifications.create` uses relative path `iconUrl: "icons/icon48.png"`. In service worker contexts, relative icon paths fail image loading unless resolved using `chrome.runtime.getURL("icons/icon48.png")`.
-  - **Fix**: Use `chrome.runtime.getURL("icons/icon48.png")` for notification icon URLs.
+### 3. Full Shell Command Compression Engine
+- **POSIX Self-Executing Compression**: Automated compression of entire shell commands into compact `eval "$(printf '%s' '<data>' | base64 -d | gzip -dc)"` one-liners using standard POSIX utilities.
+- **Universal Availability**: Supported across cURL, Wget, SSH cURL, and custom templates, shrinking bloated multi-kilobyte cookies and commands by ~90%.
 
-- [x] **Fix Extension Page Error: `Unchecked runtime.lastError: Download must be in progress`**
-  - **Location**: `src/background/downloadInterceptor.ts` (`chrome.downloads.cancel(item.id, ...)`).
-  - **Root Cause**: If a download completes, fails, or is cancelled before `chrome.downloads.cancel` finishes, Chrome sets `chrome.runtime.lastError = { message: "Download must be in progress" }`. Because the callback does not inspect `chrome.runtime.lastError`, Chrome logs an "Unchecked runtime.lastError".
-  - **Fix**: Check and clear `chrome.runtime.lastError` inside the `chrome.downloads.cancel` callback.
+### 4. SSH Remote cURL & Command Template Engine
+- **In-Popup Remote Overrides**: Contextual popdown panel allowing on-the-fly customization of remote target paths, SSH passwords (with show/hide toggle), and private keys.
+- **Custom Command Template Builder**: User-defined command templates with placeholder replacement, real-time syntax validation, and deep-linked configuration hubs.
 
-- [x] **Validate custom command template placeholders on save**
-  - In the Options page Command Template form, validate all placeholders used in the template string when saving.
-  - If invalid/unrecognized placeholders or malformed placeholder syntax are detected, display an error message in red and prevent saving.
+### 5. Resilient MV3 Interception & Service Worker State Management
+- **Dormancy-Resistant State**: Dual in-memory and `chrome.storage.session` synchronization ensuring pending downloads survive MV3 service worker sleep cycles.
+- **Clean Lifecycle Interception**: Strictly synchronized `onDeterminingFilename` and cancellation lifecycle to prevent browser warnings and race conditions on high-speed connections.
 
-- [x] **Fix cURL (SSH) Remote Downloader downloading a .txt file instead of remote execution**
-  - **Issue**: When using a cURL (SSH) remote downloader, selecting it currently downloads a `.txt` file containing the command to the local machine rather than triggering or managing remote execution properly.
-  - **Download path in popup**: When selecting the remote downloader in the popup, allow the user to optionally specify the target folder/file to download the file to on the remote server.
-  - **Auth options in config**: In the remote downloader config for cURL (SSH), allow the user to optionally specify:
-    - SSH password
-    - SSH private key (file path or raw key content)
+---
 
-- [x] **Compress entire shell command instead of just cookies**
-  - Replace "Compress cookies" with "Compress command (shorter one-liner)", compressing the entire shell command using gzip + base64 into a self-executing `eval "$(printf '%s' '<data>' | base64 -d | gzip -dc)"` one-liner.
-  - Ensure the option is always visible and available for all commands (cURL, Wget, custom templates, and SSH cURL).
+## 🔮 Upcoming Major & Semi-Major Roadmap
 
-- [x] **Show command box and overrides directly below clicked downloader selection**
-  - Dynamically move the `#commandPanel` immediately below the selected item (whether built-in, custom template, or remote downloader).
-  - Provide popup overrides for cURL (SSH): destination folder/file, password with privacy protection (`type="password"` with show/hide toggle), private key path, and key content.
+- [ ] **Automated Routing Rules Engine**
+  - Configurable auto-routing rules based on URL patterns, domains, MIME types, or file sizes (e.g., `.torrent` / `.magnet` auto-routed to qBittorrent, large video files auto-routed to FDM).
+  - Rule priority management and default fallback downloader selection.
 
-- [x] **Expand default size of the popup window**
-  - Increased popup window dimensions to 680x760px and overlay dimensions to 600x750px to comfortably display all content, downloader lists, and command panels without unnecessary scrolling.
+- [ ] **Native IDM (Internet Download Manager) Integration**
+  - Seamless 1-click forwarding to Internet Download Manager on Windows via native messaging or protocol hooks, matching the FDM workflow without manual path entry.
 
-- [x] **Fix "no pending download" error when downloading with Chrome downloader**
-  - **Issue**: Sometimes when clicking "Chrome downloader", the popup displays an error in red: "No pending download".
-  - **Root Cause**: Manifest V3 service worker goes idle / sleeps after inactivity, which wipes in-memory variables (`pendingDownload`). When the user clicks the button, the newly woken-up service worker has `pendingDownload = null`.
-  - **Fix**:
-    1. Pass `download: pendingDownload` directly in the `handleDownload` message from the popup (which already holds the pending download in its own memory).
-    2. Persist `pendingDownload` in `chrome.storage.session` so it survives service worker dormancy.
-    3. Allow downloads by returned `downloadId` in addition to URL matching so re-triggered Chrome downloads are never accidentally intercepted or lost.
+- [ ] **Active Downloads & Queue Monitoring Dashboard**
+  - Unified status overlay or dedicated tab to monitor active downloads, speeds, and completion statuses across connected services (Aria2, Motrix, qBittorrent, and Chrome).
 
-- [x] **Fix persistent `Unchecked runtime.lastError: Download must be in progress`**
-  - **Issue**: The extension page console still reports `Unchecked runtime.lastError: Download must be in progress`.
-  - **Root Cause**: In `downloadInterceptor.ts`, calling `suggest()` synchronously while simultaneously calling `chrome.downloads.cancel(item.id)` creates a race condition where fast/small downloads finish before `cancel()` completes. Calling `cancel` on a completed download fails with `Download must be in progress`. Furthermore, calling `chrome.downloads.erase({ id: item.id })` with `.catch()` leaves `chrome.runtime.lastError` unchecked in Chromium.
-  - **Fix**: Do not call `suggest()` when canceling an intercepted download. Catch and clear `chrome.runtime.lastError` via callbacks on both `chrome.downloads.cancel` and `chrome.downloads.erase`.
-
-- [x] **Support Direct Local Downloader Invocation & Eliminate .txt File Downloads**
-  - **Issue**: Clicking a Local Downloader (FDM, IDM, cURL, Wget) previously downloaded a `download_command_<timestamp>.txt` file instead of directly triggering the download in the application.
-  - **Fix**:
-    1. **Eliminated `.txt` file generation entirely**: Removed all calls to `downloadTextFile` for local downloaders.
-    2. **1-Click Local RPC / API Support**: Added native 1-click downloads for Motrix (`http://127.0.0.1:16800/jsonrpc`), JDownloader 2 (`http://127.0.0.1:9666/flash/add`), and Aria2 (`http://127.0.0.1:6800/jsonrpc`), communicating directly from Chrome extension JavaScript via HTTP/RPC with zero extra files or terminal scripts required on the user's computer.
-    3. **Custom URL Protocol Schemes**: Supported opening registered OS URL schemes (`motrix://{url}`, `thunder://{url}`, etc.) directly via browser navigation.
-- [x] **Support Direct Free Download Manager (FDM) Integration & In-App Diagnostics**
-  - **Issue**: User wants to control Free Download Manager directly without external companion scripts or manual steps, while understanding browser security limitations and verifying installation.
-  - **Fix**:
-    1. **FDM Native Messaging & Scheme Integration (`src/downloaders/fdm.ts`)**: Implemented direct dispatch to FDM's native messaging host (`org.freedownloadmanager.fdm5.cnh`) with full cookie forwarding, automatic fallback to `fdm://` URL protocol scheme, and 1-click execution in the download popup.
-    2. **Options Circular `?` Educational Button**: Added a dedicated circular `?` button next to the Type dropdown when FDM is selected, opening an educational guide explaining FDM's native messaging host permissions, extension origin authorization, and protocol fallbacks.
-    3. **Live Diagnostic Checker**: Built-in interactive diagnostics checking:
-       - Official FDM Chrome/Edge Extension status (installed, enabled, or not found via `chrome.management`)
-       - FDM Native Messaging Host status (connected/authorized, forbidden due to `allowed_origins`, or not detected)
-       - `fdm://` URL protocol scheme support
-    4. **1-Click Origin Copy**: Provided a 1-click button to copy `chrome-extension://<id>/` and display the exact file path to FDM's host manifest on macOS/Windows.
-
-
+- [ ] **Lightweight Native Companion Bridge (Optional)**
+  - Optional minimal native messaging bridge for macOS, Linux, and Windows to launch CLI tools (cURL, Wget, custom scripts) in the background without requiring terminal copy-pasting.
