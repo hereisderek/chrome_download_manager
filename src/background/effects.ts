@@ -11,7 +11,7 @@ export async function downloadTextFile(filename: string, content: string): Promi
 export function notify(title: string, message: string, priority: 0 | 1 | 2 = 1): void {
   chrome.notifications.create({
     type: "basic",
-    iconUrl: "icons/icon48.png",
+    iconUrl: chrome.runtime.getURL("icons/icon48.png"),
     title,
     message,
     priority,

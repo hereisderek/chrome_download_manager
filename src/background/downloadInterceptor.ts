@@ -30,6 +30,10 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
 
   try {
     chrome.downloads.cancel(item.id, () => {
+      // Accessing chrome.runtime.lastError clears "Unchecked runtime.lastError"
+      if (chrome.runtime.lastError) {
+        console.debug("[ADM] downloads.cancel ignored error:", chrome.runtime.lastError.message);
+      }
       chrome.downloads.erase({ id: item.id }).catch(() => {});
     });
   } catch (error) {

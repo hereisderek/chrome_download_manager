@@ -6,13 +6,14 @@ import {
   setLocalDownloaders,
   setRemoteDownloaders,
 } from "../lib/storage.ts";
-import type {
+import {
   CustomCommandTemplate,
   LocalDownloaderConfig,
   LocalDownloaderType,
   RemoteDownloaderConfig,
   RemoteDownloaderType,
 } from "../lib/types.ts";
+import { validateCommandTemplate } from "../lib/commands.ts";
 
 let localDownloaders: LocalDownloaderConfig[] = [];
 let remoteDownloaders: RemoteDownloaderConfig[] = [];
@@ -315,6 +316,10 @@ async function saveCustomCommands(): Promise<void> {
 
 function showCustomForm(data: CustomCommandTemplate | null, index: number): void {
   $<HTMLFormElement>("customForm").reset();
+  const errorEl = $("customError");
+  errorEl.classList.add("hidden");
+  errorEl.textContent = "";
+
   if (data) {
     $<HTMLInputElement>("customName").value = data.name;
     $<HTMLTextAreaElement>("customTemplate").value = data.template;
@@ -331,15 +336,31 @@ function showCustomForm(data: CustomCommandTemplate | null, index: number): void
 
 function hideCustomForm(): void {
   $("customCommandForm").classList.add("hidden");
+  const errorEl = $("customError");
+  errorEl.classList.add("hidden");
+  errorEl.textContent = "";
   $<HTMLFormElement>("customForm").reset();
 }
 
 async function saveCustomCommand(): Promise<void> {
+  const templateStr = $<HTMLTextAreaElement>("customTemplate").value.trim();
+  const validation = validateCommandTemplate(templateStr);
+  const errorEl = $("customError");
+
+  if (!validation.valid) {
+    errorEl.textContent = validation.error ?? "Invalid command template";
+    errorEl.classList.remove("hidden");
+    $<HTMLTextAreaElement>("customTemplate").focus();
+    return;
+  }
+  errorEl.classList.add("hidden");
+  errorEl.textContent = "";
+
   const index = Number($<HTMLInputElement>("customIndex").value);
   const command: CustomCommandTemplate = {
     id: index >= 0 && customCommands[index] ? customCommands[index].id : `custom_${Date.now()}`,
     name: $<HTMLInputElement>("customName").value.trim(),
-    template: $<HTMLTextAreaElement>("customTemplate").value.trim(),
+    template: templateStr,
     description: $<HTMLInputElement>("customDescription").value.trim() || undefined,
     enabled: $<HTMLInputElement>("customEnabled").checked,
   };
@@ -403,8 +424,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     void saveCustomCommand();
   });
 
-  if (location.hash === "#custom" || new URLSearchParams(location.search).get("tab") === "custom") {
-    switchTab("custom");
+  function handleHash(): void {
+    const hash = location.hash.replace(/^#/, "");
+    if (hash === "custom" || hash === "local" || hash === "remote" || hash === "about") {
+      switchTab(hash);
+    } else {
+      const tab = new URLSearchParams(location.search).get("tab");
+      if (tab === "custom" || tab === "local" || tab === "remote" || tab === "about") {
+        switchTab(tab);
+      }
+    }
   }
+
+  handleHash();
+  window.addEventListener("hashchange", handleHash);
 });
 

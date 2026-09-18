@@ -102,11 +102,26 @@ function createDownloaderRow(
   return row;
 }
 
-function noConfigMessage(): HTMLParagraphElement {
+async function openOptionsTab(tab?: "custom" | "local" | "remote"): Promise<void> {
+  const hash = tab ? `#${tab}` : "";
+  const targetUrl = chrome.runtime.getURL(`options/index.html${hash}`);
+  const matchPattern = chrome.runtime.getURL("options/index.html*");
+  const [existingTab] = await chrome.tabs.query({ url: matchPattern });
+  if (existingTab?.id) {
+    await chrome.tabs.update(existingTab.id, { url: targetUrl, active: true });
+    if (existingTab.windowId) {
+      await chrome.windows.update(existingTab.windowId, { focused: true });
+    }
+  } else {
+    await chrome.tabs.create({ url: targetUrl });
+  }
+}
+
+function noConfigMessage(tab: "local" | "remote"): HTMLParagraphElement {
   const link = el("a", { href: "#" }, ["Configure now"]);
   link.addEventListener("click", (event) => {
     event.preventDefault();
-    chrome.runtime.openOptionsPage();
+    void openOptionsTab(tab);
   });
   return el("p", { className: "no-config" }, ["Nothing configured yet. ", link]);
 }
@@ -130,7 +145,7 @@ function noCustomConfigMessage(): HTMLParagraphElement {
   const link = el("a", { href: "#" }, ["+ Add command template"]);
   link.addEventListener("click", (event) => {
     event.preventDefault();
-    chrome.runtime.openOptionsPage();
+    void openOptionsTab("custom");
   });
   return el("p", { className: "no-config" }, ["No custom templates yet. ", link]);
 }
@@ -260,7 +275,7 @@ async function loadDownloaderConfigs(): Promise<void> {
   localContainer.replaceChildren(
     ...(local.length
       ? local.map((config) => createDownloaderRow(config, "local", () => void runChoice({ kind: "local", config })))
-      : [noConfigMessage()]),
+      : [noConfigMessage("local")]),
   );
 
   const remoteContainer = document.getElementById("remoteDownloaders")!;
@@ -268,7 +283,7 @@ async function loadDownloaderConfigs(): Promise<void> {
   remoteContainer.replaceChildren(
     ...(remote.length
       ? remote.map((config) => createDownloaderRow(config, "remote", () => void runChoice({ kind: "remote", config })))
-      : [noConfigMessage()]),
+      : [noConfigMessage("remote")]),
   );
 }
 
@@ -289,9 +304,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("defaultBtn")!.addEventListener("click", () => void runChoice({ kind: "chrome" }));
   document.getElementById("exportCurlBtn")!.addEventListener("click", () => void showBuiltinCommand("curl"));
   document.getElementById("exportWgetBtn")!.addEventListener("click", () => void showBuiltinCommand("wget"));
-  document.getElementById("configureCommandsLink")?.addEventListener("click", (event) => {
+  document.getElementById("configureCustomLink")?.addEventListener("click", (event) => {
     event.preventDefault();
-    chrome.runtime.openOptionsPage();
+    void openOptionsTab("custom");
+  });
+  document.getElementById("configureLocalLink")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openOptionsTab("local");
+  });
+  document.getElementById("configureRemoteLink")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openOptionsTab("remote");
+  });
+  document.getElementById("openOptionsPageLink")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    void openOptionsTab();
   });
   document.getElementById("copyCommandBtn")!.addEventListener("click", () => void copyExportCommand());
   document.getElementById("closeCommandBtn")!.addEventListener("click", () => {

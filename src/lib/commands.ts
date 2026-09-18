@@ -246,3 +246,56 @@ export async function renderCommandTemplate(
   return result;
 }
 
+export const VALID_PLACEHOLDERS = new Set([
+  "url",
+  "downloadlink",
+  "filename",
+  "outputfilename",
+  "cookie",
+  "cookies",
+  "useragent",
+  "host",
+  "domain",
+  "hostname",
+  "browserheaders",
+  "headers",
+  "referer",
+  "referrer",
+]);
+
+export function validateCommandTemplate(template: string): { valid: boolean; error?: string } {
+  if (!template.trim()) {
+    return { valid: false, error: "Command template cannot be empty." };
+  }
+
+  // Check for unclosed < or {
+  const unclosedAngle = /<[^>]*$/;
+  const unclosedBrace = /\{[^}]*$/;
+  if (unclosedAngle.test(template) || unclosedBrace.test(template)) {
+    return { valid: false, error: "Malformed placeholder: found unclosed '<' or '{'." };
+  }
+
+  // Find all placeholders
+  const placeholderRegex = /(?:<|\{)([\w\s-]+)(?:>|\})/gi;
+  let match: RegExpExecArray | null;
+  const invalidPlaceholders: string[] = [];
+
+  while ((match = placeholderRegex.exec(template)) !== null) {
+    const raw = match[0];
+    const name = (match[1] ?? "").toLowerCase().replace(/[\s_-]+/g, "");
+    if (!VALID_PLACEHOLDERS.has(name)) {
+      invalidPlaceholders.push(raw);
+    }
+  }
+
+  if (invalidPlaceholders.length > 0) {
+    return {
+      valid: false,
+      error: `Invalid placeholder: ${invalidPlaceholders.join(", ")}. Supported placeholders: <url>, <cookie>, <filename>, <user_agent>, <host>, <browser_headers>, <referer>.`,
+    };
+  }
+
+  return { valid: true };
+}
+
+

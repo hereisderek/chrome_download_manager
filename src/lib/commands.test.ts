@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCurlCommand, buildWgetCommand, buildSshCommand, isReauthCheckpoint, renderCommandTemplate } from "./commands.ts";
+import { buildCurlCommand, buildWgetCommand, buildSshCommand, isReauthCheckpoint, renderCommandTemplate, validateCommandTemplate } from "./commands.ts";
 import { shellQuote } from "./shellQuote.ts";
 import type { DownloadContext } from "./types.ts";
 
@@ -116,4 +116,24 @@ test("renderCommandTemplate compresses cookies when compressCookies option is tr
   const result = await renderCommandTemplate(template, ctx(), { compressCookies: true });
   assert.match(result, /-b "\$\(printf '%s' '[A-Za-z0-9+/=]+' \| base64 -d \| gzip -dc\)"/);
 });
+
+test("validateCommandTemplate accepts valid placeholders and formats", () => {
+  assert.deepEqual(validateCommandTemplate("aria2c -o <filename> <url>"), { valid: true });
+  assert.deepEqual(validateCommandTemplate("curl -b {cookie} -H {user_agent} {download link}"), { valid: true });
+  assert.deepEqual(validateCommandTemplate("wget --header='Cookie: <cookie>' <browser_headers> <host>"), { valid: true });
+});
+
+test("validateCommandTemplate rejects empty or malformed templates", () => {
+  assert.equal(validateCommandTemplate("   ").valid, false);
+  assert.equal(validateCommandTemplate("curl -o <filename <url>").valid, false);
+  assert.equal(validateCommandTemplate("curl -o {filename <url>").valid, false);
+});
+
+test("validateCommandTemplate rejects unknown placeholders", () => {
+  const res = validateCommandTemplate("curl -o <output> --token=<auth_token> <url>");
+  assert.equal(res.valid, false);
+  assert.ok(res.error?.includes("<output>"));
+  assert.ok(res.error?.includes("<auth_token>"));
+});
+
 
