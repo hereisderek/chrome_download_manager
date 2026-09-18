@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy — Advanced Download Manager</title>
+  <meta name="description" content="Privacy Policy for the Advanced Download Manager Chrome extension.">
+  <link rel="icon" href="icons/icon48.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="page-header">
+    <img src="icons/icon128.png" alt="">
+    <div>
+      <h1>Privacy Policy</h1>
+      <p class="subtitle">Advanced Download Manager</p>
+    </div>
+  </header>
+
+  <main>
+    <p class="updated">Last updated: September 18, 2026</p>
+
+    <p>
+      Advanced Download Manager ("the extension") is a Chrome extension that intercepts downloads
+      and routes them to a downloader of your choice. This page explains what data the extension
+      accesses, how it is used, and where it goes.
+    </p>
+
+    <h2>Summary</h2>
+    <p>
+      The extension does not collect, transmit, or sell any data to its developer or any
+      third party. It contains no analytics, telemetry, crash reporting, advertising, or
+      third-party SDKs of any kind. Everything described below either stays on your device or is
+      sent only to a destination that you explicitly configure yourself.
+    </p>
+
+    <h2>What data the extension accesses</h2>
+    <ul>
+      <li>
+        <strong>Download metadata</strong> — the URL, filename, and HTTP referrer of a download
+        you initiate, so it can be handed to the downloader you pick.
+      </li>
+      <li>
+        <strong>Cookies</strong> — using Chrome's <code>cookies</code> permission, the extension
+        reads the cookies for the domain of a download you start, so they can be forwarded to a
+        downloader that needs them to complete the request (for example, a file that requires a
+        logged-in session).
+      </li>
+    </ul>
+    <p>
+      The extension only reads cookies for downloads you actively initiate. It does not read
+      cookies in the background or for sites you are simply browsing.
+    </p>
+
+    <h2>Where your data goes</h2>
+    <p>Depending on how you've configured the extension, download and cookie data is sent only to:</p>
+    <ul>
+      <li>
+        <strong>Your own device</strong> — a local downloader app (e.g. Free Download Manager) via
+        Chrome's native messaging API, or a local RPC endpoint (e.g. Motrix/aria2 on
+        <code>127.0.0.1</code>). This never leaves your machine.
+      </li>
+      <li>
+        <strong>Your clipboard</strong> — when you choose "Copy as cURL," a ready-to-run command
+        (optionally including cookies) is copied to your clipboard for you to run yourself.
+      </li>
+      <li>
+        <strong>A remote service you configure</strong> — if you set up a remote downloader
+        (qBittorrent Web UI, aria2 RPC, or SSH), the extension sends the download request and
+        cookies directly to the host/URL <em>you</em> typed into the Options page. This is a
+        service you run or control, not a server operated by the developer.
+      </li>
+    </ul>
+    <p>
+      <strong>The developer never receives any of your data.</strong> There is no
+      developer-operated backend, analytics endpoint, or third party that this extension talks to.
+    </p>
+
+    <h2>What the extension stores, and where</h2>
+    <ul>
+      <li>
+        <strong>Downloader configuration</strong> (the local/remote downloaders and custom commands
+        you set up in Options — including any URL, username, password, SSH key, or API token you
+        enter for your own services) is stored using Chrome's <code>storage.sync</code> API. This
+        means it is synced across your signed-in Chrome browsers through your own Google account,
+        governed by Google's sync and privacy policies — it is not sent to the developer.
+      </li>
+      <li>
+        <strong>In-progress download state</strong> (the URL, filename, referrer, and cookies for a
+        download you just triggered) is held briefly in Chrome's session storage (or memory), is
+        never synced, and is automatically cleared within seconds or when the browser session ends.
+      </li>
+    </ul>
+    <p>
+      Because downloader credentials are stored in Chrome sync storage, keep this in mind if you
+      configure a remote service with a password or API token: it will be available on any Chrome
+      profile you're signed into, per Google's own sync behavior.
+    </p>
+
+    <h2>Permissions used</h2>
+    <ul>
+      <li><code>downloads</code> — to intercept and redirect downloads.</li>
+      <li><code>cookies</code> — to read cookies for a download's domain when forwarding is needed.</li>
+      <li><code>storage</code> — to save your downloader configuration and options.</li>
+      <li><code>notifications</code> — to show status updates about downloads.</li>
+      <li><code>nativeMessaging</code> — to hand off downloads to a local app (e.g. Free Download Manager) on your machine.</li>
+      <li><code>management</code> — to detect whether a required companion app/extension is installed.</li>
+      <li><code>host_permissions (&lt;all_urls&gt;)</code> — required to intercept downloads and read cookies for any site you download from.</li>
+    </ul>
+
+    <h2>Data retention and deletion</h2>
+    <p>
+      Downloader configuration persists until you remove it from the Options page or uninstall the
+      extension, at which point Chrome deletes its stored data. Per-download state is short-lived
+      and clears automatically. You can also clear all stored settings at any time via the Options
+      page or by removing the extension.
+    </p>
+
+    <h2>Children's privacy</h2>
+    <p>This extension is not directed at children and does not knowingly collect data from children.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      If this policy changes, the updated version will be posted at this URL with a revised
+      "Last updated" date.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions about this policy or the extension's data handling can be raised via
+      <a href="https://github.com/hereisderek/chrome_download_manager/issues">GitHub Issues</a>.
+    </p>
+
+    <p><a href="index.html">&larr; Back to Advanced Download Manager</a></p>
+  </main>
+
+  <footer>
+    <p>Advanced Download Manager · <a href="https://github.com/hereisderek/chrome_download_manager">Source on GitHub</a></p>
+  </footer>
+</body>
+</html>
