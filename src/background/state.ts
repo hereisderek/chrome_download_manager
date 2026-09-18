@@ -81,15 +81,23 @@ export function allowDownload(url: string): void {
   if (sessionStorage) {
     sessionStorage.set({ allowedUrls: Array.from(allowedDownloadUrls) }).catch(() => {});
   }
+  // Auto-expire after 20 seconds so all redirect and filename phases complete safely
+  setTimeout(() => {
+    allowedDownloadUrls.delete(url);
+    if (sessionStorage) {
+      sessionStorage.set({ allowedUrls: Array.from(allowedDownloadUrls) }).catch(() => {});
+    }
+  }, 20000);
 }
 
-/** True if `url` was pre-approved (e.g. routed via "Chrome Built-in"); clears it either way. */
+/** True if `url` was pre-approved (e.g. routed via "Chrome Built-in"). */
+export function isAllowedDownload(url: string): boolean {
+  return allowedDownloadUrls.has(url);
+}
+
+/** Backward-compatible alias. */
 export function consumeAllowedDownload(url: string): boolean {
-  const deleted = allowedDownloadUrls.delete(url);
-  if (deleted && sessionStorage) {
-    sessionStorage.set({ allowedUrls: Array.from(allowedDownloadUrls) }).catch(() => {});
-  }
-  return deleted;
+  return isAllowedDownload(url);
 }
 
 export function allowDownloadId(id: number): void {
@@ -97,13 +105,21 @@ export function allowDownloadId(id: number): void {
   if (sessionStorage) {
     sessionStorage.set({ allowedIds: Array.from(allowedDownloadIds) }).catch(() => {});
   }
+  // Auto-expire after 30 seconds
+  setTimeout(() => {
+    allowedDownloadIds.delete(id);
+    if (sessionStorage) {
+      sessionStorage.set({ allowedIds: Array.from(allowedDownloadIds) }).catch(() => {});
+    }
+  }, 30000);
 }
 
-/** True if download `id` was pre-approved; clears it either way. */
+/** True if download `id` was pre-approved. */
+export function isAllowedDownloadId(id: number): boolean {
+  return allowedDownloadIds.has(id);
+}
+
+/** Backward-compatible alias. */
 export function consumeAllowedDownloadId(id: number): boolean {
-  const deleted = allowedDownloadIds.delete(id);
-  if (deleted && sessionStorage) {
-    sessionStorage.set({ allowedIds: Array.from(allowedDownloadIds) }).catch(() => {});
-  }
-  return deleted;
+  return isAllowedDownloadId(id);
 }
