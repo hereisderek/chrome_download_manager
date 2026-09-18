@@ -50,14 +50,38 @@
 
       <div id="commandPanel" class="command-panel hidden">
         <p id="commandWarning" class="command-warning hidden"></p>
-        <div id="sshDestinationGroup" class="command-input-group hidden">
-          <label for="sshDestinationInput">Remote destination folder / file (optional):</label>
-          <input type="text" id="sshDestinationInput" placeholder="e.g. /home/user/downloads or custom_name.zip">
+
+        <div id="sshOverridesGroup" class="ssh-overrides-group hidden">
+          <div class="command-input-group">
+            <label for="sshDestinationInput">Remote destination folder / file (optional):</label>
+            <input type="text" id="sshDestinationInput" placeholder="e.g. /home/user/downloads or custom_name.zip">
+          </div>
+
+          <div class="command-input-group">
+            <label for="sshPasswordInput">SSH Password override (optional):</label>
+            <div class="password-wrapper">
+              <input type="password" id="sshPasswordInput" placeholder="Leave empty to use saved config">
+              <button type="button" id="togglePasswordBtn" class="toggle-password-btn" title="Toggle password visibility">Show</button>
+            </div>
+          </div>
+
+          <div class="command-input-group">
+            <label for="sshKeyFileInput">SSH Private Key file path (optional):</label>
+            <input type="text" id="sshKeyFileInput" placeholder="e.g. ~/.ssh/id_ed25519 or /home/user/.ssh/id_rsa">
+          </div>
+
+          <details class="ssh-key-content-details">
+            <summary>SSH Private Key content (optional)</summary>
+            <div class="command-input-group">
+              <textarea id="sshKeyContentInput" rows="3" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+            </div>
+          </details>
         </div>
+
         <div id="commandOptions" class="command-options">
           <label class="command-checkbox-label">
-            <input type="checkbox" id="compressCookiesCheckbox">
-            <span>Compress cookies (shorter command)</span>
+            <input type="checkbox" id="compressCommandCheckbox">
+            <span>Compress command (shorter one-liner)</span>
           </label>
         </div>
         <div class="command-box">

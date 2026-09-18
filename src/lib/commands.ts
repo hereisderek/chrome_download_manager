@@ -1,6 +1,15 @@
-import { compressCookieHeader, formatCookieHeader } from "./cookies.ts";
+import { compressCookieHeader, compressText, formatCookieHeader } from "./cookies.ts";
 import { shellQuote } from "./shellQuote.ts";
 import type { DownloadContext, LocalDownloaderConfig } from "./types.ts";
+
+/**
+ * Compresses an entire shell command using gzip + base64 and wraps it in an eval one-liner.
+ * e.g. eval "$(printf '%s' '<base64>' | base64 -d | gzip -dc)"
+ */
+export async function compressShellCommand(command: string): Promise<string> {
+  const b64 = await compressText(command);
+  return `eval "$(printf '%s' ${shellQuote(b64)} | base64 -d | gzip -dc)"`;
+}
 
 const DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";

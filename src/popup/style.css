@@ -2,18 +2,18 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
-  min-width: 320px;
+  min-width: 500px;
   min-height: 100%;
   box-sizing: border-box;
   overflow-y: auto;
 }
 
 .container {
-  padding: 16px;
+  padding: 18px 20px;
   font-size: 13px;
   box-sizing: border-box;
   width: 100%;
-  max-width: 800px;
+  max-width: 850px;
   margin: 0 auto;
 }
 
@@ -212,10 +212,12 @@ body {
 
 /* Command panel */
 .command-panel {
-  margin: 4px 0 10px;
-  padding: 10px;
+  margin: 6px 0 12px;
+  padding: 12px;
   border-radius: var(--radius-md);
   background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .command-panel.hidden {
@@ -243,11 +245,28 @@ body {
   display: none;
 }
 
+/* SSH Overrides inside command panel */
+.ssh-overrides-group {
+  margin-bottom: 10px;
+  padding: 10px;
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.ssh-overrides-group.hidden {
+  display: none;
+}
+
 .command-input-group {
   margin-bottom: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.command-input-group:last-child {
+  margin-bottom: 0;
 }
 
 .command-input-group.hidden {
@@ -264,7 +283,7 @@ body {
   padding: 6px 8px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  background: var(--color-surface);
   color: var(--color-text);
   font-size: 12px;
   font-family: inherit;
@@ -273,6 +292,68 @@ body {
 }
 
 .command-input-group input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper input {
+  padding-right: 56px;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.toggle-password-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.ssh-key-content-details {
+  margin-top: 6px;
+  font-size: 11.5px;
+}
+
+.ssh-key-content-details summary {
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 6px;
+}
+
+.ssh-key-content-details summary:hover {
+  color: var(--color-text);
+}
+
+.ssh-key-content-details textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  resize: vertical;
+}
+
+.ssh-key-content-details textarea:focus {
   outline: none;
   border-color: var(--color-accent);
 }

@@ -1,9 +1,9 @@
 import { getCustomCommands, getLocalDownloaders, getRemoteDownloaders } from "../lib/storage.ts";
 import { ICON_ALERT_CIRCLE, ICON_CHECK_CIRCLE, ICON_CLIPBOARD, ICON_CLOUD_DOWNLOAD, ICON_FILE, ICON_SERVER, ICON_TERMINAL } from "../lib/icons.ts";
 import { sendMessage } from "../lib/messages.ts";
-import { buildCurlCommand, buildWgetCommand, isReauthCheckpoint, renderCommandTemplate } from "../lib/commands.ts";
+import { buildCurlCommand, buildWgetCommand, compressShellCommand, isReauthCheckpoint, renderCommandTemplate } from "../lib/commands.ts";
 import { buildSshCurlCommand } from "../downloaders/remote.ts";
-import { compressCookieHeader, formatCookieHeader } from "../lib/cookies.ts";
+import { formatCookieHeader } from "../lib/cookies.ts";
 import type {
   CustomCommandTemplate,
   DownloadChoice,
@@ -80,17 +80,12 @@ function displayDownloadInfo(download: PendingDownload): void {
 
   const cookieCount = download.cookies.length;
   document.getElementById("cookieCount")!.textContent = `${cookieCount} cookie${cookieCount !== 1 ? "s" : ""}`;
-
-  const commandOptions = document.getElementById("commandOptions");
-  if (commandOptions) {
-    commandOptions.style.display = cookieCount > 0 ? "" : "none";
-  }
 }
 
 function createDownloaderRow(
   config: LocalDownloaderConfig | RemoteDownloaderConfig,
   kind: "local" | "remote",
-  onClick: () => void,
+  onClick: (event: MouseEvent) => void,
 ): HTMLButtonElement {
   const row = el("button", { type: "button", className: "option-row" }, [
     el("span", { className: "option-icon" }, [icon(kind === "local" ? ICON_TERMINAL : ICON_SERVER)]),
@@ -129,7 +124,7 @@ function noConfigMessage(tab: "local" | "remote"): HTMLParagraphElement {
 
 function createCustomTemplateRow(
   tmpl: CustomCommandTemplate,
-  onClick: () => void,
+  onClick: (event: MouseEvent) => void,
 ): HTMLButtonElement {
   const row = el("button", { type: "button", className: "option-row" }, [
     el("span", { className: "option-icon" }, [icon(ICON_CLIPBOARD)]),
@@ -167,23 +162,39 @@ type ActiveExport =
   | { kind: "curl" }
   | { kind: "wget" }
   | { kind: "custom"; template: CustomCommandTemplate }
-  | { kind: "ssh-curl"; config: RemoteDownloaderConfig; remotePath?: string };
+  | {
+      kind: "ssh-curl";
+      config: RemoteDownloaderConfig;
+      remotePath?: string;
+      passwordOverride?: string;
+      keyFileOverride?: string;
+      keyContentOverride?: string;
+    };
 
 let activeExport: ActiveExport | null = null;
 let currentExportCommand = "";
 let pendingDownload: PendingDownload | null = null;
 
 function updateCommandPanelFields(): void {
-  const sshGroup = document.getElementById("sshDestinationGroup");
-  const sshInput = document.getElementById("sshDestinationInput") as HTMLInputElement | null;
-  if (!sshGroup || !sshInput) return;
+  const sshGroup = document.getElementById("sshOverridesGroup");
+  const sshDestInput = document.getElementById("sshDestinationInput") as HTMLInputElement | null;
+  const sshPassInput = document.getElementById("sshPasswordInput") as HTMLInputElement | null;
+  const sshKeyFileInput = document.getElementById("sshKeyFileInput") as HTMLInputElement | null;
+  const sshKeyContentInput = document.getElementById("sshKeyContentInput") as HTMLTextAreaElement | null;
+  const togglePassBtn = document.getElementById("togglePasswordBtn");
+
+  if (!sshGroup) return;
 
   if (activeExport?.kind === "ssh-curl") {
     sshGroup.classList.remove("hidden");
-    const currentVal = activeExport.remotePath ?? activeExport.config.remoteFolder ?? "";
-    if (sshInput.value !== currentVal && activeExport.remotePath === undefined) {
-      sshInput.value = currentVal;
+    if (sshDestInput) sshDestInput.value = activeExport.remotePath ?? "";
+    if (sshPassInput) {
+      sshPassInput.value = activeExport.passwordOverride ?? "";
+      sshPassInput.type = "password";
     }
+    if (togglePassBtn) togglePassBtn.textContent = "Show";
+    if (sshKeyFileInput) sshKeyFileInput.value = activeExport.keyFileOverride ?? "";
+    if (sshKeyContentInput) sshKeyContentInput.value = activeExport.keyContentOverride ?? "";
   } else {
     sshGroup.classList.add("hidden");
   }
@@ -191,34 +202,31 @@ function updateCommandPanelFields(): void {
 
 async function updateExportCommand(): Promise<void> {
   if (!activeExport || !pendingDownload) return;
-  const checkbox = document.getElementById("compressCookiesCheckbox") as HTMLInputElement | null;
-  const compressCookies = checkbox?.checked ?? false;
+  const compressCheckbox = document.getElementById("compressCommandCheckbox") as HTMLInputElement | null;
+  const compressCommand = compressCheckbox?.checked ?? false;
 
   let command = "";
   if (activeExport.kind === "curl" || activeExport.kind === "wget") {
-    let compressedCookie: string | undefined;
-    if (compressCookies && pendingDownload.cookies.length > 0) {
-      const header = formatCookieHeader(pendingDownload.cookies);
-      if (header) compressedCookie = await compressCookieHeader(header);
-    }
-    const opts = { mimicBrowserNavigation: true, compressedCookie };
+    const opts = { mimicBrowserNavigation: true };
     command = activeExport.kind === "curl"
       ? buildCurlCommand(pendingDownload, opts)
       : buildWgetCommand(pendingDownload, opts);
   } else if (activeExport.kind === "ssh-curl") {
-    let compressedCookie: string | undefined;
-    if (compressCookies && pendingDownload.cookies.length > 0) {
-      const header = formatCookieHeader(pendingDownload.cookies);
-      if (header) compressedCookie = await compressCookieHeader(header);
-    }
-    command = buildSshCurlCommand(activeExport.config, pendingDownload, {
+    const effectiveConfig: RemoteDownloaderConfig = {
+      ...activeExport.config,
+      sshPassword: activeExport.passwordOverride !== undefined ? activeExport.passwordOverride : activeExport.config.sshPassword,
+      sshKeyFile: activeExport.keyFileOverride !== undefined ? activeExport.keyFileOverride : activeExport.config.sshKeyFile,
+      sshKeyContent: activeExport.keyContentOverride !== undefined ? activeExport.keyContentOverride : activeExport.config.sshKeyContent,
+    };
+    command = buildSshCurlCommand(effectiveConfig, pendingDownload, {
       remotePath: activeExport.remotePath,
-      compressedCookie,
     });
   } else {
-    command = await renderCommandTemplate(activeExport.template.template, pendingDownload, {
-      compressCookies,
-    });
+    command = await renderCommandTemplate(activeExport.template.template, pendingDownload, {});
+  }
+
+  if (compressCommand) {
+    command = await compressShellCommand(command);
   }
 
   currentExportCommand = command;
@@ -232,37 +240,47 @@ async function updateExportCommand(): Promise<void> {
   warningEl.classList.toggle("hidden", !warning);
 }
 
-function showCommandPanel(): void {
+function showCommandPanel(targetElement?: HTMLElement): void {
   const panel = document.getElementById("commandPanel")!;
+  if (targetElement) {
+    targetElement.after(panel);
+  }
   panel.classList.remove("hidden");
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-async function showBuiltinCommand(tool: "curl" | "wget"): Promise<void> {
+async function showBuiltinCommand(tool: "curl" | "wget", targetElement: HTMLElement): Promise<void> {
   activeExport = { kind: tool };
   updateCommandPanelFields();
   setBusy(true);
   await updateExportCommand();
   setBusy(false);
-  showCommandPanel();
+  showCommandPanel(targetElement);
 }
 
-async function showCustomCommand(template: CustomCommandTemplate): Promise<void> {
+async function showCustomCommand(template: CustomCommandTemplate, targetElement: HTMLElement): Promise<void> {
   activeExport = { kind: "custom", template };
   updateCommandPanelFields();
   setBusy(true);
   await updateExportCommand();
   setBusy(false);
-  showCommandPanel();
+  showCommandPanel(targetElement);
 }
 
-async function showSshCurlCommand(config: RemoteDownloaderConfig): Promise<void> {
-  activeExport = { kind: "ssh-curl", config, remotePath: config.remoteFolder };
+async function showSshCurlCommand(config: RemoteDownloaderConfig, targetElement: HTMLElement): Promise<void> {
+  activeExport = {
+    kind: "ssh-curl",
+    config,
+    remotePath: config.remoteFolder,
+    passwordOverride: config.sshPassword,
+    keyFileOverride: config.sshKeyFile,
+    keyContentOverride: config.sshKeyContent,
+  };
   updateCommandPanelFields();
   setBusy(true);
   await updateExportCommand();
   setBusy(false);
-  showCommandPanel();
+  showCommandPanel(targetElement);
 }
 
 /** The async Clipboard API can be vetoed by the host page's Permissions-Policy
@@ -304,7 +322,7 @@ async function loadDownloaderConfigs(): Promise<void> {
   customContainer.replaceChildren(
     ...(custom.length
       ? custom.map((tmpl) =>
-          createCustomTemplateRow(tmpl, () => void showCustomCommand(tmpl)),
+          createCustomTemplateRow(tmpl, (event) => void showCustomCommand(tmpl, event.currentTarget as HTMLElement)),
         )
       : [noCustomConfigMessage()]),
   );
@@ -322,9 +340,9 @@ async function loadDownloaderConfigs(): Promise<void> {
   remoteContainer.replaceChildren(
     ...(remote.length
       ? remote.map((config) =>
-          createDownloaderRow(config, "remote", () => {
+          createDownloaderRow(config, "remote", (event) => {
             if (config.type === "ssh-curl") {
-              void showSshCurlCommand(config);
+              void showSshCurlCommand(config, event.currentTarget as HTMLElement);
             } else {
               void runChoice({ kind: "remote", config });
             }
@@ -349,8 +367,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadDownloaderConfigs();
 
   document.getElementById("defaultBtn")!.addEventListener("click", () => void runChoice({ kind: "chrome" }));
-  document.getElementById("exportCurlBtn")!.addEventListener("click", () => void showBuiltinCommand("curl"));
-  document.getElementById("exportWgetBtn")!.addEventListener("click", () => void showBuiltinCommand("wget"));
+  document.getElementById("exportCurlBtn")!.addEventListener("click", (event) => void showBuiltinCommand("curl", event.currentTarget as HTMLElement));
+  document.getElementById("exportWgetBtn")!.addEventListener("click", (event) => void showBuiltinCommand("wget", event.currentTarget as HTMLElement));
   document.getElementById("configureCustomLink")?.addEventListener("click", (event) => {
     event.preventDefault();
     void openOptionsTab("custom");
@@ -367,9 +385,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
     void openOptionsTab();
   });
+  document.getElementById("togglePasswordBtn")?.addEventListener("click", () => {
+    const passInput = document.getElementById("sshPasswordInput") as HTMLInputElement | null;
+    const btn = document.getElementById("togglePasswordBtn");
+    if (!passInput || !btn) return;
+    if (passInput.type === "password") {
+      passInput.type = "text";
+      btn.textContent = "Hide";
+    } else {
+      passInput.type = "password";
+      btn.textContent = "Show";
+    }
+  });
   document.getElementById("sshDestinationInput")?.addEventListener("input", (event) => {
     if (activeExport?.kind === "ssh-curl") {
       activeExport.remotePath = (event.target as HTMLInputElement).value;
+      void updateExportCommand();
+    }
+  });
+  document.getElementById("sshPasswordInput")?.addEventListener("input", (event) => {
+    if (activeExport?.kind === "ssh-curl") {
+      activeExport.passwordOverride = (event.target as HTMLInputElement).value;
+      void updateExportCommand();
+    }
+  });
+  document.getElementById("sshKeyFileInput")?.addEventListener("input", (event) => {
+    if (activeExport?.kind === "ssh-curl") {
+      activeExport.keyFileOverride = (event.target as HTMLInputElement).value;
+      void updateExportCommand();
+    }
+  });
+  document.getElementById("sshKeyContentInput")?.addEventListener("input", (event) => {
+    if (activeExport?.kind === "ssh-curl") {
+      activeExport.keyContentOverride = (event.target as HTMLTextAreaElement).value;
       void updateExportCommand();
     }
   });
@@ -377,7 +425,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("closeCommandBtn")!.addEventListener("click", () => {
     document.getElementById("commandPanel")!.classList.add("hidden");
   });
-  document.getElementById("compressCookiesCheckbox")?.addEventListener("change", () => {
+  document.getElementById("compressCommandCheckbox")?.addEventListener("change", () => {
     void updateExportCommand();
   });
   document.getElementById("cancelBtn")!.addEventListener("click", async () => {

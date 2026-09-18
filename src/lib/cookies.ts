@@ -139,13 +139,13 @@ export function formatCookiesNetscape(cookies: chrome.cookies.Cookie[]): string 
 }
 
 /**
- * Compresses a cookie string with gzip and returns a standard Base64 string.
+ * Compresses a text string with gzip and returns a standard Base64 string.
  * Uses native Web Streams CompressionStream available in modern browsers and Node 18+.
  */
-export async function compressCookieHeader(cookieHeader: string): Promise<string> {
+export async function compressText(text: string): Promise<string> {
   const cs = new CompressionStream("gzip");
   const writer = cs.writable.getWriter();
-  writer.write(new TextEncoder().encode(cookieHeader));
+  writer.write(new TextEncoder().encode(text));
   writer.close();
   const reader = cs.readable.getReader();
   const chunks: Uint8Array[] = [];
@@ -170,5 +170,9 @@ export async function compressCookieHeader(cookieHeader: string): Promise<string
     binary += String.fromCharCode(...concatenated.subarray(i, i + chunkSize));
   }
   return typeof btoa !== "undefined" ? btoa(binary) : Buffer.from(concatenated).toString("base64");
+}
+
+export async function compressCookieHeader(cookieHeader: string): Promise<string> {
+  return compressText(cookieHeader);
 }
 

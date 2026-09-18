@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCurlCommand, buildWgetCommand, buildSshCommand, isReauthCheckpoint, renderCommandTemplate, validateCommandTemplate, resolveRemotePath } from "./commands.ts";
+import { buildCurlCommand, buildWgetCommand, buildSshCommand, compressShellCommand, isReauthCheckpoint, renderCommandTemplate, validateCommandTemplate, resolveRemotePath } from "./commands.ts";
 import { shellQuote } from "./shellQuote.ts";
 import type { DownloadContext } from "./types.ts";
 
@@ -165,6 +165,12 @@ test("validateCommandTemplate rejects unknown placeholders", () => {
   assert.equal(res.valid, false);
   assert.ok(res.error?.includes("<output>"));
   assert.ok(res.error?.includes("<auth_token>"));
+});
+
+test("compressShellCommand compresses an entire command into an eval one-liner", async () => {
+  const fullCmd = "curl -L -o 'file.zip' -b 'session=12345' 'https://example.com/file.zip'";
+  const compressed = await compressShellCommand(fullCmd);
+  assert.match(compressed, /^eval "\$\(printf '%s' '[A-Za-z0-9+/=]+' \| base64 -d \| gzip -dc\)"$/);
 });
 
 

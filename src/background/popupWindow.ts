@@ -14,8 +14,8 @@ import { getPopupId, setPopupId } from "./state.ts";
  */
 const POPUP_MODE: "window" | "overlay" = "window";
 
-const POPUP_WIDTH = 550;
-const POPUP_HEIGHT = 650;
+const POPUP_WIDTH = 680;
+const POPUP_HEIGHT = 760;
 
 async function openPopupWindow(): Promise<void> {
   const currentWindow = await chrome.windows.getCurrent();

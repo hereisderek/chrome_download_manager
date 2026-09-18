@@ -51,7 +51,7 @@ function showOverlay(): void {
   const iframe = document.createElement("iframe");
   iframe.src = chrome.runtime.getURL("popup/index.html");
   iframe.allow = "clipboard-write"; // for the popup's "Copy" button - the host page's own Permissions-Policy can still veto this
-  iframe.style.cssText = "width:400px;height:640px;max-height:90vh;border:0;border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,0.35);";
+  iframe.style.cssText = "width:600px;height:750px;max-height:92vh;max-width:95vw;border:0;border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,0.35);";
 
   backdrop.addEventListener("click", (event) => {
     if (event.target === backdrop) void sendMessage({ action: "cancelDownload" });

@@ -37,3 +37,14 @@ This file tracks active tasks, bugs, and upcoming features for the Chrome Downlo
     - SSH password
     - SSH private key (file path or raw key content)
 
+- [x] **Compress entire shell command instead of just cookies**
+  - Replace "Compress cookies" with "Compress command (shorter one-liner)", compressing the entire shell command using gzip + base64 into a self-executing `eval "$(printf '%s' '<data>' | base64 -d | gzip -dc)"` one-liner.
+  - Ensure the option is always visible and available for all commands (cURL, Wget, custom templates, and SSH cURL).
+
+- [x] **Show command box and overrides directly below clicked downloader selection**
+  - Dynamically move the `#commandPanel` immediately below the selected item (whether built-in, custom template, or remote downloader).
+  - Provide popup overrides for cURL (SSH): destination folder/file, password with privacy protection (`type="password"` with show/hide toggle), private key path, and key content.
+
+- [x] **Expand default size of the popup window**
+  - Increased popup window dimensions to 680x760px and overlay dimensions to 600x750px to comfortably display all content, downloader lists, and command panels without unnecessary scrolling.
+
