@@ -687,6 +687,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderCustomCommands();
   initFdmEducation();
 
+  const versionEl = document.getElementById("extensionVersion");
+  if (versionEl) versionEl.textContent = chrome.runtime.getManifest().version;
+
   document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab!));
   });
