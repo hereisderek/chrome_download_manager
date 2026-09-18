@@ -9,7 +9,9 @@
     "downloads",
     "cookies",
     "storage",
-    "notifications"
+    "notifications",
+    "nativeMessaging",
+    "management"
   ],
   "host_permissions": [
     "<all_urls>"

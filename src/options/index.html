@@ -38,17 +38,75 @@
           </div>
 
           <div class="form-group">
-            <label for="localType">Type</label>
+            <div class="label-with-help">
+              <label for="localType">Type</label>
+              <button type="button" id="fdmHelpBtn" class="help-circle-btn hidden" title="Free Download Manager Integration & Diagnostics">?</button>
+            </div>
             <select id="localType" required>
               <option value="motrix">Motrix (1-Click Local RPC)</option>
               <option value="jdownloader">JDownloader 2 (1-Click Click'n'Load)</option>
               <option value="aria2">Aria2 (1-Click Local RPC)</option>
               <option value="protocol">Custom URL Protocol (e.g. motrix://, thunder://)</option>
+              <option value="fdm">Free Download Manager (FDM Native / Scheme)</option>
+              <option value="idm">Internet Download Manager (IDM CLI)</option>
               <option value="curl">cURL (Command-line)</option>
               <option value="wget">wget (Command-line)</option>
-              <option value="fdm">Free Download Manager (FDM CLI)</option>
-              <option value="idm">Internet Download Manager (IDM CLI)</option>
             </select>
+          </div>
+
+          <div id="fdmEduCard" class="edu-card hidden">
+            <div class="edu-header">
+              <div class="edu-title-group">
+                <span class="edu-icon">ℹ️</span>
+                <h4>Free Download Manager (FDM) Integration Guide</h4>
+              </div>
+              <button type="button" id="closeFdmEduBtn" class="close-edu-btn" title="Close">&times;</button>
+            </div>
+            <div class="edu-content">
+              <p>Free Download Manager can be controlled directly from Chrome using FDM's native messaging host (<code>org.freedownloadmanager.fdm5.cnh</code>) or its URL protocol scheme (<code>fdm://</code>).</p>
+              
+              <div class="diagnostic-box">
+                <div class="diagnostic-header">
+                  <strong>Live System Diagnostics</strong>
+                  <button type="button" id="runFdmDiagnosticsBtn" class="diag-refresh-btn">Run Diagnostics</button>
+                </div>
+                <div class="diag-items">
+                  <div class="diag-item">
+                    <span class="diag-label">Official FDM Extension:</span>
+                    <span id="fdmExtStatus" class="diag-badge status-pending">Checking...</span>
+                  </div>
+                  <div class="diag-item">
+                    <span class="diag-label">FDM Native Messaging Host:</span>
+                    <span id="fdmHostStatus" class="diag-badge status-pending">Checking...</span>
+                  </div>
+                  <div class="diag-item">
+                    <span class="diag-label">FDM Protocol Scheme (fdm://):</span>
+                    <span id="fdmSchemeStatus" class="diag-badge status-pending">Checking...</span>
+                  </div>
+                </div>
+                <div id="fdmDiagNote" class="diag-note hidden"></div>
+              </div>
+
+              <div class="edu-section">
+                <h5>Enable 1-Click Native Host Integration</h5>
+                <p>Chromium restricts native messaging to extensions explicitly listed in the host manifest's <code>allowed_origins</code>. Add this extension's origin to authorize direct 1-click downloads:</p>
+                <div class="code-copy-row">
+                  <span class="code-label">Extension Origin:</span>
+                  <code id="extensionOriginCode">chrome-extension://.../</code>
+                  <button type="button" id="copyExtOriginBtn" class="btn-sm">Copy</button>
+                </div>
+                <p class="file-path-hint">Host manifest location on macOS: <br><code>~/Library/Application Support/Google/Chrome/NativeMessagingHosts/org.freedownloadmanager.fdm5.cnh.json</code></p>
+                <p class="file-path-hint">Windows Registry: <br><code>HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\org.freedownloadmanager.fdm5.cnh</code></p>
+              </div>
+
+              <div class="edu-section">
+                <h5>Fallback Options</h5>
+                <ul class="edu-list">
+                  <li><strong>URL Protocol Scheme:</strong> If native host access is forbidden, the extension automatically invokes FDM via <code>fdm://{url}</code>.</li>
+                  <li><strong>Official FDM Extension:</strong> You can also keep the official Free Download Manager extension installed from the Chrome Web Store.</li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           <div id="localRpcGroup" class="form-group">

@@ -67,6 +67,15 @@ This file tracks active tasks, bugs, and upcoming features for the Chrome Downlo
     1. **Eliminated `.txt` file generation entirely**: Removed all calls to `downloadTextFile` for local downloaders.
     2. **1-Click Local RPC / API Support**: Added native 1-click downloads for Motrix (`http://127.0.0.1:16800/jsonrpc`), JDownloader 2 (`http://127.0.0.1:9666/flash/add`), and Aria2 (`http://127.0.0.1:6800/jsonrpc`), communicating directly from Chrome extension JavaScript via HTTP/RPC with zero extra files or terminal scripts required on the user's computer.
     3. **Custom URL Protocol Schemes**: Supported opening registered OS URL schemes (`motrix://{url}`, `thunder://{url}`, etc.) directly via browser navigation.
-    4. **Unified Popup Command Panel for CLI Tools**: For CLI tools (cURL, Wget, FDM, IDM), clicking them displays the command panel directly beneath the item with 1-click **Copy Command** and compression options.
+- [x] **Support Direct Free Download Manager (FDM) Integration & In-App Diagnostics**
+  - **Issue**: User wants to control Free Download Manager directly without external companion scripts or manual steps, while understanding browser security limitations and verifying installation.
+  - **Fix**:
+    1. **FDM Native Messaging & Scheme Integration (`src/downloaders/fdm.ts`)**: Implemented direct dispatch to FDM's native messaging host (`org.freedownloadmanager.fdm5.cnh`) with full cookie forwarding, automatic fallback to `fdm://` URL protocol scheme, and 1-click execution in the download popup.
+    2. **Options Circular `?` Educational Button**: Added a dedicated circular `?` button next to the Type dropdown when FDM is selected, opening an educational guide explaining FDM's native messaging host permissions, extension origin authorization, and protocol fallbacks.
+    3. **Live Diagnostic Checker**: Built-in interactive diagnostics checking:
+       - Official FDM Chrome/Edge Extension status (installed, enabled, or not found via `chrome.management`)
+       - FDM Native Messaging Host status (connected/authorized, forbidden due to `allowed_origins`, or not detected)
+       - `fdm://` URL protocol scheme support
+    4. **1-Click Origin Copy**: Provided a 1-click button to copy `chrome-extension://<id>/` and display the exact file path to FDM's host manifest on macOS/Windows.
 
 

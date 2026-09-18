@@ -353,7 +353,7 @@ async function loadDownloaderConfigs(): Promise<void> {
     ...(local.length
       ? local.map((config) =>
           createDownloaderRow(config, "local", (event) => {
-            const isOneClick = ["motrix", "jdownloader", "aria2", "protocol"].includes(config.type);
+            const isOneClick = ["motrix", "jdownloader", "aria2", "protocol", "fdm"].includes(config.type);
             if (isOneClick) {
               void runChoice({ kind: "local", config });
             } else {

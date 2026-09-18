@@ -14,6 +14,7 @@ import {
   RemoteDownloaderType,
 } from "../lib/types.ts";
 import { validateCommandTemplate } from "../lib/commands.ts";
+import { checkFdmStatus } from "../downloaders/fdm.ts";
 
 let localDownloaders: LocalDownloaderConfig[] = [];
 let remoteDownloaders: RemoteDownloaderConfig[] = [];
@@ -152,11 +153,16 @@ function updateLocalFields(): void {
   const isRpc = type === "motrix" || type === "jdownloader" || type === "aria2";
   const isProtocol = type === "protocol";
   const isCli = type === "curl" || type === "wget" || type === "fdm" || type === "idm";
+  const isFdm = type === "fdm";
 
   $("localRpcGroup").classList.toggle("hidden", !isRpc);
   $("localTokenGroup").classList.toggle("hidden", type !== "aria2" && type !== "motrix");
   $("localProtocolGroup").classList.toggle("hidden", !isProtocol);
   $("localPathGroup").classList.toggle("hidden", !isCli);
+  $("fdmHelpBtn").classList.toggle("hidden", !isFdm);
+  if (!isFdm) {
+    $("fdmEduCard").classList.add("hidden");
+  }
 
   const rpcInput = $<HTMLInputElement>("localRpcUrl");
   const infoText = $("localTypeInfoText");
@@ -172,6 +178,8 @@ function updateLocalFields(): void {
     infoText.textContent = "⚡ 1-Click Download: Direct connection to local Aria2 via JSON-RPC.";
   } else if (type === "protocol") {
     infoText.textContent = "🔗 Protocol: Triggers the desktop app registered with your OS for this scheme.";
+  } else if (type === "fdm") {
+    infoText.textContent = "⚡ 1-Click / Scheme: Direct native host integration or fdm:// protocol. Click (?) for setup & diagnostics.";
   } else {
     infoText.textContent = "📋 CLI Export: Displays the shell command in the popup for convenient 1-click copying.";
   }
@@ -201,6 +209,7 @@ function showLocalForm(data: LocalDownloaderConfig | null, index: number): void 
 
 function hideLocalForm(): void {
   $("localDownloaderForm").classList.add("hidden");
+  $("fdmEduCard").classList.add("hidden");
   $<HTMLFormElement>("localForm").reset();
 }
 
@@ -478,6 +487,111 @@ async function deleteCustomCommand(index: number): Promise<void> {
   showStatusMessage("Command template deleted");
 }
 
+// ---------- FDM Education & Diagnostics ----------
+
+async function runFdmDiagnostics(): Promise<void> {
+  const extStatus = $("fdmExtStatus");
+  const hostStatus = $("fdmHostStatus");
+  const schemeStatus = $("fdmSchemeStatus");
+  const noteEl = $("fdmDiagNote");
+
+  extStatus.className = "diag-badge status-pending";
+  extStatus.textContent = "Checking...";
+  hostStatus.className = "diag-badge status-pending";
+  hostStatus.textContent = "Checking...";
+  schemeStatus.className = "diag-badge status-pending";
+  schemeStatus.textContent = "Checking...";
+  noteEl.classList.add("hidden");
+
+  try {
+    const status = await checkFdmStatus();
+
+    // 1. Extension
+    if (status.extensionInstalled) {
+      if (status.extensionEnabled) {
+        extStatus.className = "diag-badge status-ok";
+        extStatus.textContent = "Installed & Active";
+      } else {
+        extStatus.className = "diag-badge status-warn";
+        extStatus.textContent = "Installed (Disabled)";
+      }
+    } else {
+      extStatus.className = "diag-badge status-warn";
+      extStatus.textContent = "Not Installed";
+    }
+
+    // 2. Native Host
+    if (status.nativeHostStatus === "connected") {
+      hostStatus.className = "diag-badge status-ok";
+      hostStatus.textContent = "Connected (Authorized)";
+      noteEl.textContent = "Native Messaging is active and authorized. Downloads will be routed directly to FDM with complete cookies and headers.";
+      noteEl.classList.remove("hidden");
+    } else if (status.nativeHostStatus === "forbidden") {
+      hostStatus.className = "diag-badge status-err";
+      hostStatus.textContent = "Forbidden (Origin not authorized)";
+      noteEl.textContent = "FDM Native Host found, but Chrome denied access because this extension's origin isn't listed in FDM's allowed_origins. Click 'Copy' above, add it to the host manifest, and restart Chrome.";
+      noteEl.classList.remove("hidden");
+    } else if (status.nativeHostStatus === "not_found") {
+      hostStatus.className = "diag-badge status-warn";
+      hostStatus.textContent = "Not Found (FDM not detected)";
+      noteEl.textContent = "FDM native messaging host was not detected. Ensure Free Download Manager is installed on your computer.";
+      noteEl.classList.remove("hidden");
+    } else {
+      hostStatus.className = "diag-badge status-err";
+      hostStatus.textContent = "Error";
+      noteEl.textContent = `Diagnostic error: ${status.nativeHostError || "Unknown error"}`;
+      noteEl.classList.remove("hidden");
+    }
+
+    // 3. Scheme
+    schemeStatus.className = "diag-badge status-ok";
+    schemeStatus.textContent = "Supported (fdm://)";
+  } catch {
+    hostStatus.className = "diag-badge status-err";
+    hostStatus.textContent = "Check Failed";
+  }
+}
+
+function initFdmEducation(): void {
+  const originCode = $("extensionOriginCode");
+  const extOrigin = `chrome-extension://${chrome.runtime?.id || "extension-id"}/`;
+  originCode.textContent = extOrigin;
+
+  const copyBtn = $<HTMLButtonElement>("copyExtOriginBtn");
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(extOrigin);
+      copyBtn.textContent = "Copied!";
+      setTimeout(() => {
+        copyBtn.textContent = "Copy";
+      }, 1500);
+    } catch {
+      copyBtn.textContent = "Failed";
+    }
+  });
+
+  const helpBtn = $("fdmHelpBtn");
+  const eduCard = $("fdmEduCard");
+  const closeBtn = $("closeFdmEduBtn");
+  const diagBtn = $("runFdmDiagnosticsBtn");
+
+  helpBtn.addEventListener("click", () => {
+    const isHidden = eduCard.classList.contains("hidden");
+    eduCard.classList.toggle("hidden", !isHidden);
+    if (isHidden) {
+      void runFdmDiagnostics();
+    }
+  });
+
+  closeBtn.addEventListener("click", () => {
+    eduCard.classList.add("hidden");
+  });
+
+  diagBtn.addEventListener("click", () => {
+    void runFdmDiagnostics();
+  });
+}
+
 // ---------- wiring ----------
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -487,6 +601,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderLocalDownloaders();
   renderRemoteDownloaders();
   renderCustomCommands();
+  initFdmEducation();
 
   document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab!));

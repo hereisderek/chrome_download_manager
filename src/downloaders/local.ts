@@ -52,20 +52,9 @@ export async function sendToJDownloader(config: LocalDownloaderConfig, ctx: Down
   }
 }
 
-export async function openProtocolScheme(pattern: string, ctx: DownloadContext): Promise<void> {
-  if (!pattern) throw new Error("No URL protocol pattern configured");
-  const target = pattern
-    .replace(/\{url\}/gi, encodeURIComponent(ctx.url))
-    .replace(/\{raw_url\}/gi, ctx.url)
-    .replace(/\{filename\}/gi, encodeURIComponent(ctx.filename ?? "download"));
-
-  const tab = await chrome.tabs.create({ url: target, active: false });
-  if (tab?.id) {
-    setTimeout(() => {
-      chrome.tabs.remove(tab.id!).catch(() => {});
-    }, 2000);
-  }
-}
+import { sendToFdm } from "./fdm.ts";
+import { openProtocolScheme } from "../lib/protocols.ts";
+export { openProtocolScheme } from "../lib/protocols.ts";
 
 /** Directly executes a local download via open API / protocol. */
 export async function routeLocalDownload(config: LocalDownloaderConfig, ctx: DownloadContext): Promise<void> {
@@ -91,6 +80,8 @@ export async function routeLocalDownload(config: LocalDownloaderConfig, ctx: Dow
       await openProtocolScheme(config.protocolPattern || "motrix://{url}", ctx);
       return;
     case "fdm":
+      await sendToFdm(config, ctx);
+      return;
     case "idm":
     case "curl":
     case "wget":

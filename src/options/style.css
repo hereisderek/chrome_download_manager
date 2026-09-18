@@ -444,4 +444,253 @@ body {
   display: none;
 }
 
+/* FDM Help Button & Educational Card */
+.label-with-help {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.label-with-help label {
+  margin-bottom: 0;
+}
+
+.help-circle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border: 1.5px solid var(--color-accent);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.help-circle-btn:hover {
+  background: var(--color-accent);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.help-circle-btn.hidden {
+  display: none;
+}
+
+.edu-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin: 12px 0 16px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.edu-card.hidden {
+  display: none;
+}
+
+.edu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 8px;
+}
+
+.edu-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edu-header h4 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.close-edu-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.close-edu-btn:hover {
+  color: var(--color-text);
+}
+
+.diagnostic-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.diagnostic-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+}
+
+.diag-refresh-btn {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.diag-refresh-btn:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.diag-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diag-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.diag-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.diag-badge.status-ok {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.diag-badge.status-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.diag-badge.status-err {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.diag-badge.status-pending {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.diag-note {
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: var(--radius-xs);
+  font-size: 11.5px;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.diag-note.hidden {
+  display: none;
+}
+
+.edu-section {
+  margin-top: 14px;
+}
+
+.edu-section h5 {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.edu-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.edu-list li {
+  margin-bottom: 4px;
+}
+
+.code-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  background: var(--color-surface);
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border);
+}
+
+.code-copy-row code {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  word-break: break-all;
+  color: var(--color-accent);
+}
+
+.file-path-hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin: 4px 0 8px;
+}
+
+.file-path-hint code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.btn-sm {
+  padding: 3px 8px;
+  font-size: 11px;
+  background: var(--color-border);
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.btn-sm:hover {
+  background: var(--color-text-muted);
+  color: #fff;
+}
+
 
