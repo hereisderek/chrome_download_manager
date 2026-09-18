@@ -184,6 +184,9 @@ Generated commands are built from data a remote site controls (URL, filename, co
 - Some sites use authentication schemes that don't translate to a simple cookie header
 - Check the service worker console for errors
 
+### Google Takeout downloads downloading as an HTML/text file with .zip extension
+- This happens when curl/wget requests fail authentication or receive Google's login redirect. The extension resolves this by intercepting post-redirect at `onDeterminingFilename`, scoping cookies strictly to the download host and `.google.com` (preventing conflicting Gmail/Drive tokens and header overflow), and using curl's `-b` and `--location-trusted` flags.
+
 ### Remote downloader not connecting
 - **qBittorrent**: confirm the Web UI is enabled and reachable, and credentials are correct
 - **aria2**: confirm `aria2c` is running with `--enable-rpc`

@@ -126,6 +126,16 @@ provides the genuine destination URL before the file is saved to disk.
   surfaces a warning in the popup rather than silently handing over a command that can't work for
   that specific attempt.
 
+### Google Takeout & Multi-Subdomain Cookie Scoping
+
+Google services share the root `.google.com` domain, but individual services (Gmail, Drive, Calendar, Docs, Tasks, etc.) set service-specific `OSID` (OAuth Session ID) and `COMPASS` cookies on their own subdomains.
+
+- **Why indiscriminate cookie dumping fails**: `chrome.cookies.getAll({ domain: "google.com" })` matches **every** subdomain of `google.com`. Merging all of them into a single `Cookie` header produces a 17+ KB header containing dozens of irrelevant cookies (`GMAIL_AT`, `GMAIL_LF`, etc.) and up to 18 duplicate conflicting `OSID` tokens. When `takeout-download.usercontent.google.com` (`UploadServer`) receives this oversized header with conflicting `OSID`s, it rejects the session and returns `HTTP 302 -> https://accounts.google.com/ServiceLogin` (an HTML sign-in page), which `curl -o filename.zip` saves as an HTML text file with a `.zip` extension.
+- **The fix in `lib/cookies.ts`**:
+  1. `cookieMatchesUrl` strictly enforces RFC 6265 domain and path scoping: sibling subdomains (`mail.google.com`, `drive.google.com`, etc.) are never sent to `takeout-download.usercontent.google.com`. Only the destination host cookies and root `.google.com` auth tokens (`SID`, `HSID`, `SSID`, `__Secure-*`) are permitted.
+  2. Cookies are deduplicated by `cookie.name`, preferring the most specific (longest domain) cookie. This eliminates all duplicate `OSID` / `COMPASS` collisions down to the single matching token.
+- **`curl` cookie forwarding across hosts**: `curl -L` drops custom `-H "Cookie: ..."` headers when following redirects across different hosts. Using `-b <data>` (`--cookie`) and `--location-trusted` keeps cookies intact across redirects and activates curl's cookie engine.
+
 ### Security: shell-command generation
 
 Downloader commands are built from data a remote site controls (URL, filename via Content-Disposition, cookies) and are written out as a `.sh`/`.txt` file the user later executes. Every value interpolated into a generated command goes through `lib/shellQuote.ts` (POSIX single-quote escaping) — never bare `"${value}"` interpolation, which would let a crafted filename break out of the quotes and run arbitrary shell code. `lib/commands.test.ts` and `lib/shellQuote.test.ts` exist specifically to guard this.
