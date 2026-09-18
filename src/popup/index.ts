@@ -77,6 +77,11 @@ function displayDownloadInfo(download: PendingDownload): void {
 
   const cookieCount = download.cookies.length;
   document.getElementById("cookieCount")!.textContent = `${cookieCount} cookie${cookieCount !== 1 ? "s" : ""}`;
+
+  const commandOptions = document.getElementById("commandOptions");
+  if (commandOptions) {
+    commandOptions.style.display = cookieCount > 0 ? "" : "none";
+  }
 }
 
 function createDownloaderRow(
@@ -116,12 +121,19 @@ async function runChoice(choice: DownloadChoice): Promise<void> {
   }
 }
 
+let currentExportTool: ExportTool | null = null;
 let currentExportCommand = "";
 
-async function showExportCommand(tool: ExportTool): Promise<void> {
-  setBusy(true);
-  const response = await sendMessage({ action: "exportCommand", tool });
-  setBusy(false);
+async function updateExportCommand(): Promise<void> {
+  if (!currentExportTool) return;
+  const checkbox = document.getElementById("compressCookiesCheckbox") as HTMLInputElement | null;
+  const compressCookies = checkbox?.checked ?? false;
+
+  const response = await sendMessage({
+    action: "exportCommand",
+    tool: currentExportTool,
+    compressCookies,
+  });
   if (!response.success) {
     showMessage("error", response.error);
     return;
@@ -133,6 +145,13 @@ async function showExportCommand(tool: ExportTool): Promise<void> {
   const warningEl = document.getElementById("commandWarning")!;
   warningEl.textContent = response.warning ?? "";
   warningEl.classList.toggle("hidden", !response.warning);
+}
+
+async function showExportCommand(tool: ExportTool): Promise<void> {
+  currentExportTool = tool;
+  setBusy(true);
+  await updateExportCommand();
+  setBusy(false);
 
   const panel = document.getElementById("commandPanel")!;
   panel.classList.remove("hidden");
@@ -209,6 +228,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("copyCommandBtn")!.addEventListener("click", () => void copyExportCommand());
   document.getElementById("closeCommandBtn")!.addEventListener("click", () => {
     document.getElementById("commandPanel")!.classList.add("hidden");
+  });
+  document.getElementById("compressCookiesCheckbox")?.addEventListener("change", () => {
+    void updateExportCommand();
   });
   document.getElementById("cancelBtn")!.addEventListener("click", async () => {
     await sendMessage({ action: "cancelDownload" });

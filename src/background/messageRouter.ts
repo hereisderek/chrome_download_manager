@@ -1,14 +1,22 @@
 import { buildLocalCommand } from "../downloaders/local.ts";
 import { buildSshCurlCommand, sendToAria2, sendToQBittorrent } from "../downloaders/remote.ts";
 import { buildCurlCommand, buildWgetCommand, isReauthCheckpoint } from "../lib/commands.ts";
+import { compressCookieHeader, formatCookieHeader } from "../lib/cookies.ts";
 import type { ExportTool, Message, Response } from "../lib/messages.ts";
 import type { DownloadChoice, DownloadContext } from "../lib/types.ts";
 import { downloadTextFile, notify } from "./effects.ts";
 import { closeDownloadPopup } from "./popupWindow.ts";
 import { allowDownload, getPendingDownload, setBypassNextDownload, setPendingDownload } from "./state.ts";
 
-function buildExportCommand(tool: ExportTool, ctx: DownloadContext): string {
-  const opts = { mimicBrowserNavigation: true };
+async function buildExportCommand(tool: ExportTool, ctx: DownloadContext, compressCookies?: boolean): Promise<string> {
+  let compressedCookie: string | undefined;
+  if (compressCookies && ctx.cookies.length > 0) {
+    const cookieHeader = formatCookieHeader(ctx.cookies);
+    if (cookieHeader) {
+      compressedCookie = await compressCookieHeader(cookieHeader);
+    }
+  }
+  const opts = { mimicBrowserNavigation: true, compressedCookie };
   return tool === "curl" ? buildCurlCommand(ctx, opts) : buildWgetCommand(ctx, opts);
 }
 
@@ -95,7 +103,13 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse: (
       const warning = isReauthCheckpoint(pending.url)
         ? "Google is asking to re-verify this session before releasing the file. That step needs a real browser to pass - this command likely won't work. Try \"Chrome downloader\" instead."
         : undefined;
-      sendResponse({ success: true, command: buildExportCommand(message.tool, pending), warning });
+      buildExportCommand(message.tool, pending, message.compressCookies)
+        .then((command) => {
+          sendResponse({ success: true, command, warning });
+        })
+        .catch((error: unknown) => {
+          sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
+        });
       return true;
     }
   }

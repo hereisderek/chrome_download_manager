@@ -137,3 +137,20 @@ export function formatCookiesNetscape(cookies: chrome.cookies.Cookie[]): string 
     })
     .join("\n");
 }
+
+/**
+ * Compresses a cookie string with gzip and returns a standard Base64 string.
+ * Uses native Web Streams CompressionStream available in modern browsers and Node 18+.
+ */
+export async function compressCookieHeader(cookieHeader: string): Promise<string> {
+  const stream = new Blob([cookieHeader]).stream().pipeThrough(new CompressionStream("gzip"));
+  const buffer = await new Response(stream).arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return typeof btoa !== "undefined" ? btoa(binary) : Buffer.from(buffer).toString("base64");
+}
+

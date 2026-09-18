@@ -7,7 +7,7 @@ export type Message =
   | { action: "getPendingDownload" }
   | { action: "handleDownload"; choice: DownloadChoice }
   | { action: "cancelDownload" }
-  | { action: "exportCommand"; tool: ExportTool };
+  | { action: "exportCommand"; tool: ExportTool; compressCookies?: boolean };
 
 export type Response =
   | { success: true; download?: PendingDownload | null; command?: string; warning?: string }

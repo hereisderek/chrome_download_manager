@@ -52,13 +52,23 @@ function browserNavigationHeaders(ctx: DownloadContext): [string, string][] {
   ];
 }
 
+export interface CommandOptions {
+  mimicBrowserNavigation?: boolean;
+  binary?: string;
+  compressedCookie?: string;
+}
+
 export function buildCurlCommand(
   ctx: DownloadContext,
-  opts: { mimicBrowserNavigation?: boolean; binary?: string } = {},
+  opts: CommandOptions = {},
 ): string {
   const parts = [shellQuote(opts.binary ?? "curl"), "-L", "--location-trusted", "-o", shellQuote(resolveFilename(ctx))];
-  const cookieHeader = formatCookieHeader(ctx.cookies);
-  if (cookieHeader) parts.push("-b", shellQuote(cookieHeader));
+  if (opts.compressedCookie) {
+    parts.push("-b", `"$(printf '%s' ${shellQuote(opts.compressedCookie)} | base64 -d | gzip -dc)"`);
+  } else {
+    const cookieHeader = formatCookieHeader(ctx.cookies);
+    if (cookieHeader) parts.push("-b", shellQuote(cookieHeader));
+  }
   if (ctx.referrer) parts.push("-H", shellQuote(`Referer: ${ctx.referrer}`));
   if (opts.mimicBrowserNavigation) {
     parts.push("-H", shellQuote(`User-Agent: ${getUserAgent()}`));
@@ -68,10 +78,14 @@ export function buildCurlCommand(
   return parts.join(" ");
 }
 
-export function buildWgetCommand(ctx: DownloadContext, opts: { mimicBrowserNavigation?: boolean; binary?: string } = {}): string {
+export function buildWgetCommand(ctx: DownloadContext, opts: CommandOptions = {}): string {
   const parts = [shellQuote(opts.binary ?? "wget"), "-O", shellQuote(resolveFilename(ctx))];
-  const cookieHeader = formatCookieHeader(ctx.cookies);
-  if (cookieHeader) parts.push(`--header=${shellQuote(`Cookie: ${cookieHeader}`)}`);
+  if (opts.compressedCookie) {
+    parts.push(`--header="Cookie: $(printf '%s' ${shellQuote(opts.compressedCookie)} | base64 -d | gzip -dc)"`);
+  } else {
+    const cookieHeader = formatCookieHeader(ctx.cookies);
+    if (cookieHeader) parts.push(`--header=${shellQuote(`Cookie: ${cookieHeader}`)}`);
+  }
   if (ctx.referrer) parts.push(`--referer=${shellQuote(ctx.referrer)}`);
   if (opts.mimicBrowserNavigation) {
     parts.push(`--user-agent=${shellQuote(getUserAgent())}`);

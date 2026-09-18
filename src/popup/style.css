@@ -1,12 +1,20 @@
 body {
-  width: 380px;
-  max-height: 600px;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-width: 320px;
+  min-height: 100%;
+  box-sizing: border-box;
   overflow-y: auto;
 }
 
 .container {
   padding: 16px;
   font-size: 13px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .title {
@@ -218,8 +226,27 @@ body {
   display: none;
 }
 
+.command-options {
+  margin-bottom: 8px;
+}
+
+.command-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.command-checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
 .command-box {
-  max-height: 140px;
+  max-height: 250px;
   overflow: auto;
   padding: 8px 9px;
   border-radius: var(--radius-sm);

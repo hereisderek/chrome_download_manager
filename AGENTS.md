@@ -159,3 +159,5 @@ Touches: the type in `lib/types.ts` (`LocalDownloaderType`/`RemoteDownloaderType
 - Async/await, not promise chains.
 - No `innerHTML` with interpolated data anywhere in `popup/` or `options/` — build DOM nodes and set `.textContent`, since downloader names/descriptions are user-editable and would otherwise be a stored-XSS vector.
 - Background-only state (pending download, bypass flag, allow-list) lives in `background/state.ts`; don't reintroduce module-level `let` globals scattered across other background files.
+- **Planning & Testing for Agents**: Do not create implementation plans or pause for review on small improvements, UI tweaks, or bug fixes. Do not run full test suites after small tweaks unless there is a major architectural change or explicitly requested by the user.
+- **CLI Cookie Compression**: Exported cURL / Wget commands support compression via `base64 -d | gzip -dc` command substitution (`-b "$(printf '%s' '<data>' | base64 -d | gzip -dc)"`), reducing bulky cookie arguments by ~90% using standard POSIX CLI utilities without third-party dependencies.
