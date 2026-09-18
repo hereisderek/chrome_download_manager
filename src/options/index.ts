@@ -73,12 +73,19 @@ function createDownloaderCard(
   if (kind === "local") {
     const local = config as LocalDownloaderConfig;
     if (local.type === "motrix" || local.type === "jdownloader" || local.type === "aria2") {
-      const defaultRpc = local.type === "motrix" ? "http://127.0.0.1:16800/jsonrpc" : local.type === "jdownloader" ? "http://127.0.0.1:9666/flash/add" : "http://127.0.0.1:6800/jsonrpc";
+      const defaultRpc =
+        local.type === "motrix"
+          ? "http://127.0.0.1:16800/jsonrpc"
+          : local.type === "jdownloader"
+            ? "http://127.0.0.1:9666/flash/add"
+            : "http://127.0.0.1:6800/jsonrpc";
       body.push(el("p", { className: "path" }, [el("strong", {}, ["Endpoint: "]), local.rpcUrl || defaultRpc]));
     } else if (local.type === "protocol") {
       body.push(el("p", { className: "path" }, [el("strong", {}, ["Protocol: "]), local.protocolPattern || "motrix://{url}"]));
+    } else if (local.type === "fdm") {
+      body.push(el("p", { className: "path" }, [el("strong", {}, ["Integration: "]), "1-Click Native Host / fdm:// Scheme"]));
     } else if (local.path) {
-      body.push(el("p", { className: "path" }, [el("strong", {}, ["Path: "]), local.path]));
+      body.push(el("p", { className: "path" }, [el("strong", {}, ["Binary: "]), local.path]));
     }
   } else {
     const address = remoteAddress(config as RemoteDownloaderConfig);
@@ -151,38 +158,104 @@ function showStatusMessage(message: string, kind: "success" | "error" = "success
 function updateLocalFields(): void {
   const type = $<HTMLSelectElement>("localType").value as LocalDownloaderType;
   const isRpc = type === "motrix" || type === "jdownloader" || type === "aria2";
+  const hasToken = type === "motrix" || type === "aria2";
   const isProtocol = type === "protocol";
-  const isCli = type === "curl" || type === "wget" || type === "fdm" || type === "idm";
+  const isPath = type === "curl" || type === "wget" || type === "idm";
   const isFdm = type === "fdm";
 
   $("localRpcGroup").classList.toggle("hidden", !isRpc);
-  $("localTokenGroup").classList.toggle("hidden", type !== "aria2" && type !== "motrix");
+  $("localTokenGroup").classList.toggle("hidden", !hasToken);
   $("localProtocolGroup").classList.toggle("hidden", !isProtocol);
-  $("localPathGroup").classList.toggle("hidden", !isCli);
+  $("localPathGroup").classList.toggle("hidden", !isPath);
   $("fdmHelpBtn").classList.toggle("hidden", !isFdm);
   if (!isFdm) {
     $("fdmEduCard").classList.add("hidden");
   }
 
   const rpcInput = $<HTMLInputElement>("localRpcUrl");
+  const rpcHint = $("localRpcHint");
+  const pathInput = $<HTMLInputElement>("localPath");
+  const pathHint = document.getElementById("localPathHint");
   const infoText = $("localTypeInfoText");
 
   if (type === "motrix") {
-    if (!rpcInput.value) rpcInput.value = "http://127.0.0.1:16800/jsonrpc";
+    rpcInput.placeholder = "http://127.0.0.1:16800/jsonrpc";
+    rpcHint.textContent = "Motrix Aria2 JSON-RPC endpoint (default: http://127.0.0.1:16800/jsonrpc)";
     infoText.textContent = "⚡ 1-Click Download: Direct connection to Motrix via local Aria2 RPC. Make sure Motrix is running.";
   } else if (type === "jdownloader") {
-    if (!rpcInput.value) rpcInput.value = "http://127.0.0.1:9666/flash/add";
+    rpcInput.placeholder = "http://127.0.0.1:9666/flash/add";
+    rpcHint.textContent = "JDownloader 2 Click'n'Load endpoint (default: http://127.0.0.1:9666/flash/add)";
     infoText.textContent = "⚡ 1-Click Download: Direct connection to JDownloader 2 via Click'n'Load. Make sure JDownloader is running.";
   } else if (type === "aria2") {
-    if (!rpcInput.value) rpcInput.value = "http://127.0.0.1:6800/jsonrpc";
+    rpcInput.placeholder = "http://127.0.0.1:6800/jsonrpc";
+    rpcHint.textContent = "Aria2 JSON-RPC endpoint (default: http://127.0.0.1:6800/jsonrpc)";
     infoText.textContent = "⚡ 1-Click Download: Direct connection to local Aria2 via JSON-RPC.";
   } else if (type === "protocol") {
     infoText.textContent = "🔗 Protocol: Triggers the desktop app registered with your OS for this scheme.";
   } else if (type === "fdm") {
     infoText.textContent = "⚡ 1-Click / Scheme: Direct native host integration or fdm:// protocol. Click (?) for setup & diagnostics.";
-  } else {
-    infoText.textContent = "📋 CLI Export: Displays the shell command in the popup for convenient 1-click copying.";
+  } else if (type === "idm") {
+    pathInput.placeholder = "e.g., idman or C:\\Program Files (x86)\\Internet Download Manager\\IDMan.exe";
+    if (pathHint) pathHint.textContent = "Binary name or full path for Internet Download Manager (default: idman)";
+    infoText.textContent = "📋 CLI Export: Displays the IDM command in the popup for convenient 1-click copying.";
+  } else if (type === "curl") {
+    pathInput.placeholder = "curl";
+    if (pathHint) pathHint.textContent = "Binary name or path for cURL (default: curl)";
+    infoText.textContent = "📋 CLI Export: Displays the cURL command in the popup for convenient 1-click copying.";
+  } else if (type === "wget") {
+    pathInput.placeholder = "wget";
+    if (pathHint) pathHint.textContent = "Binary name or path for wget (default: wget)";
+    infoText.textContent = "📋 CLI Export: Displays the wget command in the popup for convenient 1-click copying.";
   }
+}
+
+function handleLocalTypeChange(): void {
+  const index = Number($<HTMLInputElement>("localIndex").value);
+  const type = $<HTMLSelectElement>("localType").value as LocalDownloaderType;
+  const nameInput = $<HTMLInputElement>("localName");
+
+  const defaultNames = [
+    "Motrix",
+    "JDownloader 2",
+    "Aria2",
+    "Custom Protocol",
+    "Free Download Manager",
+    "Internet Download Manager",
+    "cURL",
+    "wget",
+  ];
+  if (index === -1 && (!nameInput.value || defaultNames.includes(nameInput.value))) {
+    const nameMap: Record<LocalDownloaderType, string> = {
+      motrix: "Motrix",
+      jdownloader: "JDownloader 2",
+      aria2: "Aria2",
+      protocol: "Custom Protocol",
+      fdm: "Free Download Manager",
+      idm: "Internet Download Manager",
+      curl: "cURL",
+      wget: "wget",
+    };
+    nameInput.value = nameMap[type] ?? "";
+  }
+
+  const isRpc = type === "motrix" || type === "jdownloader" || type === "aria2";
+  const hasToken = type === "motrix" || type === "aria2";
+  const isProtocol = type === "protocol";
+  const isPath = type === "curl" || type === "wget" || type === "idm";
+
+  // Clear fields not applicable to newly selected type
+  if (!isRpc) $<HTMLInputElement>("localRpcUrl").value = "";
+  if (!hasToken) $<HTMLInputElement>("localToken").value = "";
+  if (!isProtocol) $<HTMLInputElement>("localProtocolPattern").value = "";
+  if (!isPath) $<HTMLInputElement>("localPath").value = "";
+
+  if (isRpc && !$<HTMLInputElement>("localRpcUrl").value) {
+    if (type === "motrix") $<HTMLInputElement>("localRpcUrl").value = "http://127.0.0.1:16800/jsonrpc";
+    else if (type === "jdownloader") $<HTMLInputElement>("localRpcUrl").value = "http://127.0.0.1:9666/flash/add";
+    else if (type === "aria2") $<HTMLInputElement>("localRpcUrl").value = "http://127.0.0.1:6800/jsonrpc";
+  }
+
+  updateLocalFields();
 }
 
 function showLocalForm(data: LocalDownloaderConfig | null, index: number): void {
@@ -200,6 +273,11 @@ function showLocalForm(data: LocalDownloaderConfig | null, index: number): void 
     $<HTMLSelectElement>("localType").value = "motrix";
     $<HTMLInputElement>("localName").value = "Motrix";
     $<HTMLInputElement>("localRpcUrl").value = "http://127.0.0.1:16800/jsonrpc";
+    $<HTMLInputElement>("localToken").value = "";
+    $<HTMLInputElement>("localProtocolPattern").value = "";
+    $<HTMLInputElement>("localPath").value = "";
+    $<HTMLInputElement>("localDescription").value = "";
+    $<HTMLInputElement>("localEnabled").checked = true;
   }
   updateLocalFields();
   $<HTMLInputElement>("localIndex").value = String(index);
@@ -216,13 +294,19 @@ function hideLocalForm(): void {
 async function saveLocalDownloader(): Promise<void> {
   const index = Number($<HTMLInputElement>("localIndex").value);
   const type = $<HTMLSelectElement>("localType").value as LocalDownloaderType;
+
+  const isRpc = type === "motrix" || type === "jdownloader" || type === "aria2";
+  const hasToken = type === "motrix" || type === "aria2";
+  const isProtocol = type === "protocol";
+  const isPath = type === "curl" || type === "wget" || type === "idm";
+
   const downloader: LocalDownloaderConfig = {
     name: $<HTMLInputElement>("localName").value.trim(),
     type,
-    rpcUrl: $<HTMLInputElement>("localRpcUrl").value.trim() || undefined,
-    token: $<HTMLInputElement>("localToken").value.trim() || undefined,
-    protocolPattern: $<HTMLInputElement>("localProtocolPattern").value.trim() || undefined,
-    path: $<HTMLInputElement>("localPath").value.trim() || undefined,
+    rpcUrl: isRpc ? ($<HTMLInputElement>("localRpcUrl").value.trim() || undefined) : undefined,
+    token: hasToken ? ($<HTMLInputElement>("localToken").value.trim() || undefined) : undefined,
+    protocolPattern: isProtocol ? ($<HTMLInputElement>("localProtocolPattern").value.trim() || undefined) : undefined,
+    path: isPath ? ($<HTMLInputElement>("localPath").value.trim() || undefined) : undefined,
     description: $<HTMLInputElement>("localDescription").value.trim() || undefined,
     enabled: $<HTMLInputElement>("localEnabled").checked,
   };
@@ -613,7 +697,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
     void saveLocalDownloader();
   });
-  $<HTMLSelectElement>("localType").addEventListener("change", updateLocalFields);
+  $<HTMLSelectElement>("localType").addEventListener("change", handleLocalTypeChange);
 
   $("addRemoteBtn").addEventListener("click", () => showRemoteForm(null, -1));
   $("cancelRemoteBtn").addEventListener("click", hideRemoteForm);
