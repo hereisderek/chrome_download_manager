@@ -5,7 +5,7 @@ export type ExportTool = "curl" | "wget";
 export type Message =
   | { action: "setBypassExtension"; bypass: boolean }
   | { action: "getPendingDownload" }
-  | { action: "handleDownload"; choice: DownloadChoice }
+  | { action: "handleDownload"; choice: DownloadChoice; download?: PendingDownload }
   | { action: "cancelDownload" }
   | { action: "exportCommand"; tool: ExportTool; compressCookies?: boolean };
 

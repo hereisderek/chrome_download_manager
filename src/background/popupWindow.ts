@@ -48,7 +48,9 @@ async function openPopupWindow(): Promise<void> {
 function closePopupWindow(): void {
   const id = getPopupId();
   if (id === null) return;
-  chrome.windows.remove(id);
+  chrome.windows.remove(id, () => {
+    void chrome.runtime.lastError;
+  });
   setPopupId(null);
 }
 

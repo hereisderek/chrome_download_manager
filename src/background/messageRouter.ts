@@ -6,7 +6,14 @@ import type { ExportTool, Message, Response } from "../lib/messages.ts";
 import type { DownloadChoice, DownloadContext } from "../lib/types.ts";
 import { downloadTextFile, notify } from "./effects.ts";
 import { closeDownloadPopup } from "./popupWindow.ts";
-import { allowDownload, getPendingDownload, setBypassNextDownload, setPendingDownload } from "./state.ts";
+import {
+  allowDownload,
+  allowDownloadId,
+  getPendingDownload,
+  getPendingDownloadAsync,
+  setBypassNextDownload,
+  setPendingDownload,
+} from "./state.ts";
 
 async function buildExportCommand(tool: ExportTool, ctx: DownloadContext, compressCookies?: boolean): Promise<string> {
   let compressedCookie: string | undefined;
@@ -22,7 +29,7 @@ async function buildExportCommand(tool: ExportTool, ctx: DownloadContext, compre
 
 async function routeDownload(choice: DownloadChoice, ctx: DownloadContext): Promise<void> {
   switch (choice.kind) {
-    case "chrome":
+    case "chrome": {
       // No custom headers here: chrome.downloads.download() throws on
       // "unsafe" header names, and Referer is one of them (along with
       // Cookie, Origin, Host, ...) - the browser reserves control of those.
@@ -30,8 +37,12 @@ async function routeDownload(choice: DownloadChoice, ctx: DownloadContext): Prom
       // cookies included automatically, same as any normal download.
       allowDownload(ctx.url);
       if (ctx.originalUrl) allowDownload(ctx.originalUrl);
-      await chrome.downloads.download({ url: ctx.url, saveAs: false });
+      const downloadId = await chrome.downloads.download({ url: ctx.url, saveAs: false });
+      if (typeof downloadId === "number") {
+        allowDownloadId(downloadId);
+      }
       return;
+    }
 
     case "local": {
       const command = buildLocalCommand(choice.config, ctx);
@@ -64,25 +75,43 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse: (
       sendResponse({ success: true });
       return true;
 
-    case "getPendingDownload":
-      sendResponse({ success: true, download: getPendingDownload() });
+    case "getPendingDownload": {
+      (async () => {
+        let pending = getPendingDownload();
+        if (!pending) {
+          pending = await getPendingDownloadAsync();
+          if (pending) {
+            setPendingDownload(pending);
+          }
+        }
+        sendResponse({ success: true, download: pending });
+      })();
       return true;
+    }
 
     case "handleDownload": {
-      const pending = getPendingDownload();
-      if (!pending) {
-        sendResponse({ success: false, error: "No pending download" });
-        return true;
-      }
-      routeDownload(message.choice, pending)
-        .then(() => {
+      (async () => {
+        try {
+          let pending = getPendingDownload();
+          if (!pending && message.download) {
+            pending = message.download;
+            setPendingDownload(pending);
+          }
+          if (!pending) {
+            pending = await getPendingDownloadAsync();
+          }
+          if (!pending) {
+            sendResponse({ success: false, error: "No pending download" });
+            return;
+          }
+          await routeDownload(message.choice, pending);
           setPendingDownload(null);
           closeDownloadPopup();
           sendResponse({ success: true });
-        })
-        .catch((error: unknown) => {
+        } catch (error: unknown) {
           sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
-        });
+        }
+      })();
       return true;
     }
 
@@ -93,21 +122,25 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse: (
       return true;
 
     case "exportCommand": {
-      const pending = getPendingDownload();
-      if (!pending) {
-        sendResponse({ success: false, error: "No pending download" });
-        return true;
-      }
-      const warning = isReauthCheckpoint(pending.url)
-        ? "Google is asking to re-verify this session before releasing the file. That step needs a real browser to pass - this command likely won't work. Try \"Chrome downloader\" instead."
-        : undefined;
-      buildExportCommand(message.tool, pending, message.compressCookies)
-        .then((command) => {
+      (async () => {
+        try {
+          let pending = getPendingDownload();
+          if (!pending) {
+            pending = await getPendingDownloadAsync();
+          }
+          if (!pending) {
+            sendResponse({ success: false, error: "No pending download" });
+            return;
+          }
+          const warning = isReauthCheckpoint(pending.url)
+            ? "Google is asking to re-verify this session before releasing the file. That step needs a real browser to pass - this command likely won't work. Try \"Chrome downloader\" instead."
+            : undefined;
+          const command = await buildExportCommand(message.tool, pending, message.compressCookies);
           sendResponse({ success: true, command, warning });
-        })
-        .catch((error: unknown) => {
+        } catch (error: unknown) {
           sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
-        });
+        }
+      })();
       return true;
     }
   }

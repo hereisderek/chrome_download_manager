@@ -48,3 +48,16 @@ This file tracks active tasks, bugs, and upcoming features for the Chrome Downlo
 - [x] **Expand default size of the popup window**
   - Increased popup window dimensions to 680x760px and overlay dimensions to 600x750px to comfortably display all content, downloader lists, and command panels without unnecessary scrolling.
 
+- [x] **Fix "no pending download" error when downloading with Chrome downloader**
+  - **Issue**: Sometimes when clicking "Chrome downloader", the popup displays an error in red: "No pending download".
+  - **Root Cause**: Manifest V3 service worker goes idle / sleeps after inactivity, which wipes in-memory variables (`pendingDownload`). When the user clicks the button, the newly woken-up service worker has `pendingDownload = null`.
+  - **Fix**:
+    1. Pass `download: pendingDownload` directly in the `handleDownload` message from the popup (which already holds the pending download in its own memory).
+    2. Persist `pendingDownload` in `chrome.storage.session` so it survives service worker dormancy.
+    3. Allow downloads by returned `downloadId` in addition to URL matching so re-triggered Chrome downloads are never accidentally intercepted or lost.
+
+- [x] **Fix persistent `Unchecked runtime.lastError: Download must be in progress`**
+  - **Issue**: The extension page console still reports `Unchecked runtime.lastError: Download must be in progress`.
+  - **Root Cause**: In `downloadInterceptor.ts`, calling `suggest()` synchronously while simultaneously calling `chrome.downloads.cancel(item.id)` creates a race condition where fast/small downloads finish before `cancel()` completes. Calling `cancel` on a completed download fails with `Download must be in progress`. Furthermore, calling `chrome.downloads.erase({ id: item.id })` with `.catch()` leaves `chrome.runtime.lastError` unchecked in Chromium.
+  - **Fix**: Do not call `suggest()` when canceling an intercepted download. Catch and clear `chrome.runtime.lastError` via callbacks on both `chrome.downloads.cancel` and `chrome.downloads.erase`.
+

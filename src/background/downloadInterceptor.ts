@@ -1,7 +1,12 @@
 import { getCookiesForUrl } from "../lib/cookies.ts";
 import type { PendingDownload } from "../lib/types.ts";
 import { openDownloadPopup } from "./popupWindow.ts";
-import { consumeAllowedDownload, consumeBypassFlag, setPendingDownload } from "./state.ts";
+import {
+  consumeAllowedDownload,
+  consumeAllowedDownloadId,
+  consumeBypassFlag,
+  setPendingDownload,
+} from "./state.ts";
 
 function extractFilename(path: string | undefined): string | null {
   if (!path) return null;
@@ -22,8 +27,12 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     suggest();
     return;
   }
-  if (consumeAllowedDownload(item.url) || (item.finalUrl && consumeAllowedDownload(item.finalUrl))) {
-    console.log("[ADM] skipped: url was pre-allowed");
+  if (
+    consumeAllowedDownloadId(item.id) ||
+    consumeAllowedDownload(item.url) ||
+    (item.finalUrl && consumeAllowedDownload(item.finalUrl))
+  ) {
+    console.log("[ADM] skipped: url or id was pre-allowed");
     suggest();
     return;
   }
@@ -31,16 +40,27 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
   try {
     chrome.downloads.cancel(item.id, () => {
       // Accessing chrome.runtime.lastError clears "Unchecked runtime.lastError"
-      if (chrome.runtime.lastError) {
-        console.debug("[ADM] downloads.cancel ignored error:", chrome.runtime.lastError.message);
+      const cancelErr = chrome.runtime.lastError;
+      if (cancelErr) {
+        console.debug("[ADM] downloads.cancel notice:", cancelErr.message);
       }
-      chrome.downloads.erase({ id: item.id }).catch(() => {});
+      chrome.downloads.erase({ id: item.id }, () => {
+        const eraseErr = chrome.runtime.lastError;
+        if (eraseErr) {
+          console.debug("[ADM] downloads.erase notice:", eraseErr.message);
+        }
+      });
     });
   } catch (error) {
     console.error("[ADM] Failed to intercept download:", error);
   }
 
-  suggest();
+  // NOTE: Do NOT call suggest() here!
+  // According to Chrome's onDeterminingFilename API docs:
+  // "If the download is canceled, suggest does not need to be called."
+  // Calling suggest() allows Chrome to continue downloading in parallel with cancel(),
+  // which causes fast downloads to complete before cancel() runs, triggering
+  // "Unchecked runtime.lastError: Download must be in progress".
 
   // item.finalUrl is Chrome's post-redirect URL resolved after all HTTP redirects
   // and authentication handshakes have completed.

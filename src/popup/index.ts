@@ -148,7 +148,11 @@ function noCustomConfigMessage(): HTMLParagraphElement {
 
 async function runChoice(choice: DownloadChoice): Promise<void> {
   setBusy(true);
-  const response = await sendMessage({ action: "handleDownload", choice });
+  const response = await sendMessage({
+    action: "handleDownload",
+    choice,
+    download: pendingDownload ?? undefined,
+  });
   if (response.success) {
     showMessage("success", "Download started");
     setTimeout(() => window.close(), 1000);
