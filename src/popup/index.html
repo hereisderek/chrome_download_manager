@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Choose Download Method</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div id="messageSlot"></div>
+
+    <h1 class="title">Download</h1>
+
+    <div class="summary">
+      <div class="summary-icon" id="summaryIcon"></div>
+      <div class="summary-text">
+        <p class="summary-filename" id="downloadFilename"></p>
+        <p class="summary-meta">
+          <span id="downloadSize"></span><span class="dot">&middot;</span><span id="cookieCount"></span>
+        </p>
+        <p class="summary-url" id="downloadUrl"></p>
+      </div>
+    </div>
+
+    <div class="options">
+      <button id="defaultBtn" class="option-row" type="button">
+        <span class="option-icon" id="defaultIcon"></span>
+        <span class="option-text">
+          <strong>Chrome downloader</strong>
+          <small>Use Chrome's built-in downloader</small>
+        </span>
+      </button>
+
+      <button id="exportCurlBtn" class="option-row" type="button" data-tool="curl">
+        <span class="option-icon" id="exportCurlIcon"></span>
+        <span class="option-text">
+          <strong>cURL command</strong>
+          <small>Show a ready-to-run command with cookies</small>
+        </span>
+      </button>
+
+      <button id="exportWgetBtn" class="option-row" type="button" data-tool="wget">
+        <span class="option-icon" id="exportWgetIcon"></span>
+        <span class="option-text">
+          <strong>wget command</strong>
+          <small>Show a ready-to-run command with cookies</small>
+        </span>
+      </button>
+
+      <div id="commandPanel" class="command-panel hidden">
+        <p id="commandWarning" class="command-warning hidden"></p>
+        <div class="command-box">
+          <code id="commandText"></code>
+        </div>
+        <div class="command-actions">
+          <button id="copyCommandBtn" class="copy-btn" type="button">Copy</button>
+          <button id="closeCommandBtn" class="ghost-btn" type="button">Close</button>
+        </div>
+      </div>
+
+      <div class="option-section">
+        <h2>Local downloaders</h2>
+        <div id="localDownloaders"></div>
+      </div>
+
+      <div class="option-section">
+        <h2>Remote downloaders</h2>
+        <div id="remoteDownloaders"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button id="cancelBtn" class="ghost-btn" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

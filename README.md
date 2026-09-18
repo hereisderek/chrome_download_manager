@@ -1,160 +1,147 @@
 # Advanced Download Manager
 
-A powerful Chrome extension that intercepts downloads and gives you complete control over how files are downloaded. Route downloads to Chrome's built-in downloader, local download managers (Free Download Manager, IDM, cURL, wget), or remote services (qBittorrent, aria2) with automatic cookie forwarding.
+A Chrome extension that intercepts downloads and gives you complete control over how files are downloaded — without getting in the way of normal browsing. It can route a download to:
+
+* Chrome's built-in downloader
+* A local download manager (FDM, IDM, cURL, wget) — generates a command with cookies that you run yourself
+* A remote download service (qBittorrent, aria2, SSH + cURL) — sent automatically, cookies included
+* Your clipboard, as a ready-to-run cURL command
 
 ## Features
+- 🎯 **Download Interception** — Catch all downloads before they start
+- 🔗 **Smart URL Tracking** — Automatically captures final download URLs even through multiple redirects (works with Google Takeout, etc.)
+- 🍪 **Automatic Cookie Forwarding** — Extract and forward cookies to external downloaders
+- 📋 **Copy as cURL** — Generate a ready-to-use cURL command with cookies included
+- 💻 **Local Downloader Support** — Free Download Manager, IDM, cURL, wget
+- 🌐 **Remote Downloader Support** — qBittorrent Web UI, aria2 RPC, SSH + cURL
+- ⚙️ **Easy Configuration** — Clean options page for managing downloaders, with dark mode support
+- 🔒 **Privacy-Focused** — Cookies are only extracted for downloads you initiate
 
-- 🎯 **Download Interception** - Catch all downloads before they start
-- 🔗 **Smart URL Tracking** - Automatically captures final download URLs even through multiple redirects (works with Google Takeout, etc.)
-- 🍪 **Automatic Cookie Forwarding** - Extract and forward cookies to external downloaders
-- 📋 **Export as cURL** - Generate ready-to-use cURL commands with cookies included
-- 💻 **Local Downloader Support** - Free Download Manager, IDM, cURL, wget
-- 🌐 **Remote Downloader Support** - qBittorrent Web UI, aria2 RPC, SSH/cURL
-- ⚙️ **Easy Configuration** - User-friendly options page for managing downloaders
-- 🔒 **Privacy-Focused** - Cookies only extracted for downloads you initiate
+## Install Locally (Developer Mode)
 
-## Installation
+This extension isn't on the Chrome Web Store yet, so for now it's loaded as an unpacked extension. Source is TypeScript, bundled into a plain-JS `dist/` folder — Chrome loads `dist/`, not the repo root.
 
-### From Chrome Web Store (Coming Soon)
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/hereisderek/chrome_download_manager.git
+   cd chrome_download_manager
+   ```
 
-Once published, you'll be able to install directly from the Chrome Web Store.
+2. **Install dependencies and build**
+   ```bash
+   npm install
+   npm run build
+   ```
+   This produces a self-contained extension in `dist/`.
+
+3. **Load it in Chrome**
+   - Open `chrome://extensions/`
+   - Enable **Developer mode** (toggle, top-right)
+   - Click **Load unpacked**
+   - Select the `dist/` folder (not the repo root)
+   - The extension icon should appear in your toolbar
+
+4. **Keep it up to date while developing**
+   - Run `npm run watch` to rebuild automatically as you edit source files
+   - After editing anything under `background/` or `content/`, click the reload icon for the extension on `chrome://extensions/`
+   - After editing `popup/` or `options/`, just reopen the popup or options page — no reload needed
 
 ### From GitHub Releases
 
+Prefer not to build it yourself? Each release ships a pre-built zip:
+
 1. Go to [Releases](https://github.com/hereisderek/chrome_download_manager/releases)
 2. Download the latest `chrome_download_manager.zip`
-3. Extract the zip file
-4. Open Chrome and navigate to `chrome://extensions/`
-5. Enable "Developer mode" (toggle in top-right corner)
-6. Click "Load unpacked"
-7. Select the extracted folder
-8. The extension icon should appear in your toolbar
+3. Extract it
+4. Open `chrome://extensions/`, enable **Developer mode**, click **Load unpacked**, and select the extracted folder
 
-### From Source
+### From the Chrome Web Store
 
-1. Clone or download this repository
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" (toggle in top-right corner)
-4. Click "Load unpacked"
-5. Select the `chrome_download_manager` directory
-6. The extension icon should appear in your toolbar
+Not published yet — coming once it's had more real-world testing.
 
 ## Usage
 
 ### Basic Workflow
 
-1. **Configure Downloaders** (first time)
-   - Click the extension icon or right-click → Options
-   - Add your preferred local or remote downloaders
-   - Save the configuration
+1. **Configure downloaders** (first time only)
+   - Right-click the extension icon → Options (or click the icon, then "Configure now")
+   - Add your preferred local and/or remote downloaders
+   - Save
 
-2. **Download Files**
-   - Click any download link or start a download in Chrome
-   - A popup will appear with available options
-   - Choose your preferred download method:
-     - **Chrome Built-in**: Use default browser downloader
-     - **Export as cURL**: Generate a cURL command with cookies (can be executed anywhere)
-### Export as cURL Command
+2. **Download files as usual**
+   - Click any download link, or start a download normally
+   - A popup appears with your available options
+   - Pick one:
+     - **Chrome downloader** — use Chrome's normal downloader
+     - **Copy as cURL** — copies a ready-to-run command with cookies to your clipboard
+     - Any local or remote downloader you've configured
 
-The **Export as cURL** option generates a standalone shell script containing a complete cURL command with all necessary cookies and headers. This is perfect for:
+### Copy as cURL
 
-- Running downloads on different machines
-- Scheduling downloads for later
-- Sharing download commands (ensure you trust the recipient!)
-- Debugging download issues
-- Using in automation scripts
+Copies a complete cURL command — including cookies, referrer, and a spoofed user-agent — to your clipboard. Useful for:
 
-**Example generated command:**
+- Running the download on a different machine
+- Scheduling it for later
+- Debugging why a download isn't working
+- Automation scripts
+
+**Example command:**
 ```bash
-#!/bin/bash
-# Generated curl command
-# Execute this script to download the file
-
-curl -L -o "example_file.zip" \
-  -H "Cookie: session_id=abc123; user_token=xyz789" \
-  -H "Referer: https://example.com/downloads" \
-  -H "User-Agent: Mozilla/5.0..." \
-  "https://example.com/download/file.zip"
+curl -L -o 'example_file.zip' \
+  -H 'Cookie: session_id=abc123; user_token=xyz789' \
+  -H 'Referer: https://example.com/downloads' \
+  -H 'User-Agent: Mozilla/5.0...' \
+  'https://example.com/download/file.zip'
 ```
 
-To use:
-1. Click "Export as cURL" in the download popup
-2. The script is saved to your downloads folder
-3. Make it executable: `chmod +x curl_download_*.sh`
-4. Run it: `./curl_download_*.sh`
+Paste it into a terminal to run it. Every value is single-quote escaped (see [Security notes](#security-notes) below), so it's safe to run even if the filename or URL contains unusual characters.
 
 ### Configuring Local Downloaders
 
-Local downloaders generate command-line instructions that you execute on your machine.
+Local downloaders generate a command you run yourself — the extension can't execute arbitrary binaries on your machine, only Chrome's own downloads API.
 
-### Configuring Local Downloaders
-
-Local downloaders generate command-line instructions that you execute on your machine.
-
-**Free Download Manager (FDM)**
-- Name: `Free Download Manager`
-- Type: `Free Download Manager (FDM)`
-- Path: `/Applications/FreeDownloadManager.app/Contents/MacOS/fdm` (macOS)
-  or `C:\Program Files\FDM\fdm.exe` (Windows)
-
-**cURL**
-- Name: `cURL`
-- Type: `cURL`
-- Path: `/usr/bin/curl` (usually pre-installed on macOS/Linux)
-
-**wget**
-- Name: `wget`
-- Type: `wget`
-- Path: `/usr/local/bin/wget`
+| Type | Path example | Notes |
+|---|---|---|
+| Free Download Manager (FDM) | `/Applications/FreeDownloadManager.app/Contents/MacOS/fdm` (macOS) or `C:\Program Files\FDM\fdm.exe` (Windows) | Cookie/referrer flags are best-effort, not an officially documented CLI |
+| Internet Download Manager (IDM) | `C:\Program Files (x86)\Internet Download Manager\IDMan.exe` | Same caveat as FDM above |
+| cURL | `/usr/bin/curl` (usually pre-installed on macOS/Linux) | |
+| wget | `/usr/local/bin/wget` or `/opt/homebrew/bin/wget` | May need installing (`brew install wget`) |
 
 ### Configuring Remote Downloaders
 
-Remote downloaders automatically send downloads to external services.
+Remote downloaders are sent the download automatically, with cookies included — no manual step required.
 
 **qBittorrent Web UI**
-
-1. Enable Web UI in qBittorrent:
-   - Open qBittorrent → Preferences → Web UI
-   - Check "Enable the Web User Interface"
-   - Set port (default: 8080)
-   - Set username and password
-
-2. Add to extension:
-   - Name: `qBittorrent Server`
-   - Type: `qBittorrent Web UI`
-   - Web UI URL: `http://localhost:8080` (or your server IP)
-   - Username: (your qBittorrent username)
-   - Password: (your qBittorrent password)
+1. In qBittorrent: Preferences → Web UI → enable it, set a port (default `8080`) and credentials
+2. In the extension: Type `qBittorrent Web UI`, Web UI URL `http://localhost:8080` (or your server's address), username, password
 
 **aria2 RPC**
-
 1. Start aria2 with RPC enabled:
    ```bash
-   aria2c --enable-rpc --rpc-listen-all=true --rpc-allow-origin-all=true
+   aria2c --enable-rpc --rpc-listen-all=true --rpc-secret=your_secret_token
    ```
-   
-   Or with secret token:
-   ```bash
-   aria2c --enable-rpc --rpc-secret=your_secret_token
-   ```
+2. In the extension: Type `aria2 RPC`, RPC URL `http://localhost:6800/jsonrpc`, and the same secret token
 
-2. Add to extension:
-   - Name: `aria2`
-   - Type: `aria2 RPC`
-| Downloader | Type | Cookie Support | Notes |
-|------------|------|----------------|-------|
-| Chrome Built-in | Local | ✅ Native | Default Chrome downloader |
-| **Export as cURL** | **Export** | **✅ Script file** | **Portable bash script with cookies** |
-| Free Download Manager | Local | ✅ CLI args | Requires FDM installed |
-| Internet Download Manager | Local | ✅ CLI args | Requires IDM installed |
-| cURL | Local | ✅ Headers | Pre-installed on most systems |
-| wget | Local | ✅ Headers | May need installation |
-| qBittorrent | Remote | ✅ Web UI API | Requires Web UI enabled |
-| aria2 | Remote | ✅ RPC headers | Requires aria2c running |
-| SSH/cURL | Remote | ✅ SSH command | Requires SSH access |
-- SSH User: `root` or your username
+**cURL (SSH)**
+Generates an `ssh user@host '<curl command>'` command as a `.sh` file for you to run — nothing is executed automatically.
+1. In the extension: Type `cURL (SSH)`, SSH Host (e.g. `example.com` or an IP), SSH User (e.g. `root`)
+2. Requires SSH access to that host from wherever you run the generated script
 
-The extension will generate an SSH command that you can execute.
+## Supported Downloader Types
+
+| Downloader | Kind | How it runs | Cookie delivery | Requires |
+|---|---|---|---|---|
+| Chrome downloader | Built-in | Automatic | Native | Nothing — always available |
+| Copy as cURL | Clipboard | You paste and run it | `Cookie` header | `curl` on your machine |
+| Free Download Manager (FDM) | Local | Generated command, you run it | Best-effort CLI flag | FDM installed |
+| Internet Download Manager (IDM) | Local | Generated command, you run it | Best-effort CLI flag | IDM installed |
+| cURL | Local | Generated command, you run it | `Cookie` header | `curl` installed |
+| wget | Local | Generated command, you run it | `Cookie` header | `wget` installed |
+| qBittorrent | Remote | Automatic, via Web UI API | API parameter | Web UI enabled + reachable |
+| aria2 | Remote | Automatic, via JSON-RPC | RPC header | `aria2c` running with `--enable-rpc` |
+| cURL (SSH) | Remote | Generated `.sh`, you run it on the host | `Cookie` header | SSH access to that host |
+
+"Local" and "cURL (SSH)" downloaders can't be executed by the extension itself — a browser extension can't invoke arbitrary binaries on your machine — so it hands you a ready-to-run command instead. "Remote" downloaders with a real API (qBittorrent, aria2) are triggered automatically.
 
 ## How Cookie Forwarding Works
 
@@ -162,95 +149,83 @@ When you download a file, the extension:
 
 1. Extracts all cookies from the download URL's domain
 2. Includes cookies from parent domains (e.g., `.example.com` for `subdomain.example.com`)
-3. Formats cookies appropriately for each downloader type:
-   - **cURL/wget**: HTTP Cookie header format
-   - **qBittorrent/aria2**: Sent via API parameters
-   - **Local tools**: Command-line arguments or cookie files
+3. Formats them per downloader:
+   - **cURL/wget/SSH**: an HTTP `Cookie` header
+   - **qBittorrent/aria2**: sent via API parameters
+   - **FDM/IDM**: passed as command-line arguments
 
-This ensures that downloads from authenticated sessions work correctly with external tools.
-
-## Supported Downloader Types
-
-| Downloader | Type | Cookie Support | Notes |
-|------------|------|----------------|-------|
-| Chrome Built-in | Local | ✅ Native | Default Chrome downloader |
-| Free Download Manager | Local | ✅ CLI args | Requires FDM installed |
-| Internet Download Manager | Local | ✅ CLI args | Requires IDM installed |
-| cURL | Local | ✅ Headers | Pre-installed on most systems |
-| wget | Local | ✅ Headers | May need installation |
-| qBittorrent | Remote | ✅ Web UI API | Requires Web UI enabled |
-| aria2 | Remote | ✅ RPC headers | Requires aria2c running |
-| SSH/cURL | Remote | ✅ SSH command | Requires SSH access |
+This is what lets downloads from an authenticated session keep working once handed off to an external tool.
 
 ## Permissions Explained
 
-The extension requires these permissions:
+- **downloads** — intercept and manage downloads
+- **cookies** — extract cookies for download URLs
+- **storage** — save your downloader configurations
+- **notifications** — show download status messages
+- **host_permissions** (`<all_urls>`) — needed to read cookies for whatever site you download from
 
-- **downloads** - Intercept and manage downloads
-- **cookies** - Extract cookies for download URLs
-- **storage** - Save your downloader configurations
-- **notifications** - Show download status messages
-- **webRequest** - Monitor download requests
-- **host_permissions** - Access cookies from all websites (only for downloads you initiate)
+## Security Notes
+
+Generated commands are built from data a remote site controls (URL, filename, cookies), and get written out as a script you later run. Every interpolated value is POSIX single-quote escaped before being placed into a command, so a crafted filename or URL can't break out of its argument and inject shell commands. This is covered by unit tests (`npm test`) — see [AGENTS.md](AGENTS.md) for details.
+
+- Cookies are only extracted for URLs you actively download, and only sent to the downloaders you configure
+- Remote downloader credentials (e.g. a qBittorrent password) are stored in `chrome.storage.sync`, which is **not encrypted** — use HTTPS for remote connections where you can
+- SSH commands are generated as a file for you to run; nothing is executed automatically
 
 ## Troubleshooting
 
-### Downloads Not Being Intercepted
+### Downloads not being intercepted
+- Check the extension is enabled in `chrome://extensions/`
+- Reload it from that page
+- Confirm the service worker is running: Details → "Inspect views: service worker"
 
-- Check if the extension is enabled in `chrome://extensions/`
-- Refresh the extension by clicking the reload icon
-- Ensure the service worker is running (click "Details" → "Inspect views: service worker")
+### Cookies not working
+- Some sites use authentication schemes that don't translate to a simple cookie header
+- Check the service worker console for errors
 
-### Cookies Not Working
+### Remote downloader not connecting
+- **qBittorrent**: confirm the Web UI is enabled and reachable, and credentials are correct
+- **aria2**: confirm `aria2c` is running with `--enable-rpc`
+- **SSH**: confirm you have SSH access to the host from wherever you run the generated script
+- Watch for CORS issues on the remote service's side
 
-- Verify the extension has permission to access the download site
-- Check browser console for error messages
-- Some sites use special authentication that may not work with external tools
-
-### Remote Downloaders Not Connecting
-
-- **qBittorrent**: Verify Web UI is enabled and accessible
-- **aria2**: Ensure aria2c is running with RPC enabled
-- **SSH**: Check SSH credentials and network connectivity
-- Check for CORS issues (may need to configure remote service)
-
-### Commands Not Working
-
-For local downloaders, ensure:
-- The executable path is correct
-- The downloader is properly installed
-- You're executing the command in the correct directory
+### Generated command doesn't work
+- Confirm the executable path is correct for local downloaders
+- Confirm the tool is actually installed at that path
 
 ## Development
+
+See [AGENTS.md](AGENTS.md) for the full architecture breakdown. Quick reference:
+
+```bash
+npm install
+npm run build      # bundle src/ -> dist/
+npm run watch       # rebuild on file changes
+npm run typecheck   # tsc --noEmit
+npm test            # unit tests for the shell-command/cookie logic
+npm run check       # typecheck + test + build
+```
 
 ### Project Structure
 
 ```
-chrome_download_manager/
-├── manifest.json          # Extension configuration
-├── background.js          # Service worker (download interception & routing)
-├── popup.html             # Download choice UI
-├── popup.js               # Popup logic
-├── popup.css              # Popup styling
-├── options.html           # Configuration page
-├── options.js             # Configuration logic
-├── options.css            # Configuration styling
-├── icons/                 # Extension icons
-└── .github/
-    └── copilot-instructions.md  # AI agent instructions
+src/
+├── manifest.json      # copied to dist/ as-is
+├── background/          # service worker: interception, routing, messaging
+├── content/              # modifier-key bypass tracker
+├── popup/                # download-choice UI
+├── options/               # downloader configuration UI
+├── downloaders/            # per-type command/request builders (local + remote)
+├── shared/                  # theme.css - design tokens shared by popup + options
+└── lib/                      # types, messaging, cookies, shell-quoting, icons, storage
 ```
 
-### Building
+### Manual Testing
 
-No build step required - load directly as unpacked extension.
-
-### Testing
-
-1. Load the extension in Chrome
-2. Visit a site with downloadable files
-3. Click a download link
-4. Verify popup appears with configured options
-5. Check console logs for debugging
+1. `npm run build`, then load `dist/` in Chrome
+2. Visit a site with downloadable files and click a download link
+3. Confirm the popup appears with your configured options
+4. Check the service worker console for errors if something looks wrong
 
 ## Privacy Policy
 
@@ -259,55 +234,42 @@ No build step required - load directly as unpacked extension.
 This extension does not collect, store, or transmit any personal data.
 
 **What the extension accesses:**
-- Download URLs - temporarily processed to intercept and route downloads
-- Cookies - extracted from download domains and forwarded only to your configured download managers
-- User preferences - stored locally in your browser's sync storage
+- Download URLs — processed only to intercept and route the download
+- Cookies — extracted from the download's domain, forwarded only to the downloader you pick
+- Your downloader configuration — stored locally via `chrome.storage.sync`
 
-**What we do NOT do:**
-- ❌ Collect or store any user data
-- ❌ Track your browsing activity
-- ❌ Send data to external servers (except your configured downloaders)
-- ❌ Use analytics or telemetry
-- ❌ Share information with third parties
+**What it does not do:**
+- Collect or store any user data
+- Track your browsing activity
+- Send data anywhere except the downloader you explicitly configured
+- Use analytics or telemetry
+- Share information with third parties
 
-**Your data stays with you:**
-All processing happens locally on your device. Cookies and download information are only sent to download managers that YOU explicitly configure.
-
-## Privacy & Security
-
-- Cookies are only extracted for URLs you actively download
-- Cookies are never sent to third parties except downloaders you configure
-- Remote downloader credentials are stored in Chrome sync storage (not encrypted)
-- For production use, consider using HTTPS for remote connections
-- SSH commands are generated but not executed automatically
+All processing happens locally on your device.
 
 ## Known Limitations
 
-- Chrome sync storage has a ~100KB quota (limit on number of configured downloaders)
-- Some sites with complex authentication may not work with external tools
-- Service worker may need periodic refresh in Chrome's extension page
-- Manifest V3 restrictions prevent some advanced download manipulation
+- `chrome.storage.sync` has a ~100KB quota, capping how many downloaders you can configure
+- Some sites with unusual authentication schemes won't work with external tools
+- The service worker can go idle and may need a moment to wake up on the next download
+- Manifest V3 restricts some lower-level download manipulation Manifest V2 extensions could do
 
 ## Contributing
 
-Contributions welcome! Please ensure:
-- Code follows existing patterns (async/await, error handling)
-- Test with multiple downloader types
-- Update documentation for new features
+Contributions welcome. Please:
+- Follow the existing patterns (async/await, typed messages — see AGENTS.md)
+- Run `npm run check` before opening a PR
+- Update this README or AGENTS.md for anything that changes behavior or architecture
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License — see [LICENSE](LICENSE) for details.
 
 ## Author
 
-**derek**  
+**derek**
 GitHub: [https://github.com/hereisderek](https://github.com/hereisderek)
-
-## Credits
-
-Created as an advanced download management solution for power users who need flexible download routing with authentication support.
 
 ---
 
-**Note**: This extension is for personal use. Ensure you comply with website terms of service when using automated download tools.
+**Note**: This extension is for personal use. Make sure you comply with the terms of service of any site you use it with.

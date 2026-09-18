@@ -2,75 +2,99 @@ name: Publish to Chrome Web Store
 
 on:
   push:
-    branches:
-      - publish
     tags:
       - 'v*'
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get version from manifest
+      - name: Validate tag format
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$TAG' doesn't match the required stable release format v<major>.<minor>.<patch> (e.g. v1.2.3)."
+            exit 1
+          fi
+          echo "Tag OK: $TAG"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck, test, and build
+        run: npm run check
+
+      - name: Verify tag matches manifest version
         id: get_version
         run: |
-          VERSION=$(jq -r '.version' manifest.json)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          MANIFEST_VERSION=$(jq -r '.version' dist/manifest.json)
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION doesn't match dist/manifest.json version $MANIFEST_VERSION. Update the version in src/manifest.json before tagging."
+            exit 1
+          fi
+          echo "version=$MANIFEST_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create extension package
         run: |
-          zip -r chrome_download_manager.zip . \
-            -x "*.git*" \
-            -x "*node_modules*" \
-            -x "*.DS_Store" \
-            -x "*.github/*" \
-            -x "*.vscode/*" \
-            -x "README.md" \
-            -x "LICENSE"
+          cd dist
+          zip -r ../chrome_download_manager.zip .
+          cd ..
           echo "Package created: chrome_download_manager.zip"
           ls -lh chrome_download_manager.zip
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome_download_manager-${{ steps.get_version.outputs.version }}
+          path: chrome_download_manager.zip
+
+      - name: Check Chrome Web Store credentials
+        id: store_creds
+        env:
+          EXT_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          if [ -n "$EXT_ID" ] && [ -n "$CLIENT_ID" ] && [ -n "$CLIENT_SECRET" ] && [ -n "$REFRESH_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create GitHub Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          release_name: Release v${{ steps.get_version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: ${{ steps.store_creds.outputs.configured != 'true' }}
+          generate_release_notes: true
+          files: chrome_download_manager.zip
           body: |
-            ## Advanced Download Manager v${{ steps.get_version.outputs.version }}
-            
-            Chrome extension for advanced download management with cookie forwarding.
-            
-            ### Installation
-            1. Download `chrome_download_manager.zip`
-            2. Extract the zip file
-            3. Open Chrome and go to `chrome://extensions/`
-            4. Enable "Developer mode"
-            5. Click "Load unpacked" and select the extracted folder
-            
-            ### Changes
-            See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation.
-          draft: false
-          prerelease: false
+            ## Advanced Download Manager ${{ github.ref_name }}
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./chrome_download_manager.zip
-          asset_name: chrome_download_manager.zip
-          asset_content_type: application/zip
+            Chrome extension for advanced download management with cookie forwarding.
+
+            ### Installation
+            1. Download `chrome_download_manager.zip` below
+            2. Extract it
+            3. Open `chrome://extensions/`, enable "Developer mode", click "Load unpacked", and select the extracted folder
+
+            See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation.
 
       - name: Publish to Chrome Web Store
+        if: steps.store_creds.outputs.configured == 'true'
         uses: mnao305/chrome-extension-upload@v5.0.0
         with:
           file-path: chrome_download_manager.zip
@@ -80,8 +104,14 @@ jobs:
           refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
           publish: true
 
-      - name: Success Notification
-        if: success()
+      - name: Report status
+        if: always()
         run: |
-          echo "✅ Successfully published v${{ steps.get_version.outputs.version }} to Chrome Web Store!"
-          echo "🔗 GitHub Release: ${{ steps.create_release.outputs.html_url }}"
+          if [ "${{ steps.store_creds.outputs.configured }}" == "true" ]; then
+            echo "✅ Release ${{ github.ref_name }} created and published to the Chrome Web Store."
+          else
+            echo "⚠️ Chrome Web Store credentials aren't configured (CHROME_EXTENSION_ID / CHROME_CLIENT_ID / CHROME_CLIENT_SECRET / CHROME_REFRESH_TOKEN)."
+            echo "Created a DRAFT GitHub Release instead of publishing. To finish this release:"
+            echo "  1. Add those four repo secrets (see .github/PUBLISHING.md), or"
+            echo "  2. Manually publish the draft release and upload chrome_download_manager.zip to the Chrome Web Store Developer Dashboard yourself."
+          fi
