@@ -50,28 +50,25 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     if (oldest !== undefined) interceptedDownloadIds.delete(oldest);
   }
 
-  // Cancel using Promise and explicitly catch any rejections (including "Download must be in progress")
-  if (!item.state || item.state === "in_progress") {
-    chrome.downloads.cancel(item.id)
-      .then(() => {
-        return chrome.downloads.erase({ id: item.id }).catch(() => {
-          void chrome.runtime?.lastError;
-        });
-      })
-      .catch((err: unknown) => {
-        // Explicitly consume runtime.lastError and handle the rejection
-        void chrome.runtime?.lastError;
-        const msg = err instanceof Error ? err.message : String(err);
-        console.debug("[ADM] Cancel notice:", msg);
-      });
-  }
-
-  // NOTE: Do NOT call suggest() here!
-  // According to Chrome's onDeterminingFilename API docs:
-  // "If the download is canceled, suggest does not need to be called."
-  // Calling suggest() allows Chrome to continue downloading in parallel with cancel(),
-  // which causes fast downloads to complete before cancel() runs, triggering
+  // 1. Call suggest() synchronously to complete the onDeterminingFilename phase.
+  // Chrome requires onDeterminingFilename listeners to call suggest() before the download
+  // can transition to 'in_progress'. Calling cancel() before suggest() triggers
   // "Unchecked runtime.lastError: Download must be in progress".
+  suggest();
+
+  // 2. Cancel the download now that it is in_progress.
+  // Use an explicit callback checking chrome.runtime.lastError so Chrome's C++ bindings
+  // mark the error as checked and never emit an unchecked runtime.lastError warning.
+  chrome.downloads.cancel(item.id, () => {
+    const err = chrome.runtime.lastError;
+    if (err) {
+      console.debug("[ADM] Cancel notice:", err.message);
+    } else {
+      chrome.downloads.erase({ id: item.id }, () => {
+        void chrome.runtime.lastError;
+      });
+    }
+  });
 
   // item.finalUrl is Chrome's post-redirect URL resolved after all HTTP redirects
   // and authentication handshakes have completed.
