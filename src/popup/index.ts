@@ -2,6 +2,7 @@ import { getCustomCommands, getLocalDownloaders, getRemoteDownloaders } from "..
 import { ICON_ALERT_CIRCLE, ICON_CHECK_CIRCLE, ICON_CLIPBOARD, ICON_CLOUD_DOWNLOAD, ICON_FILE, ICON_SERVER, ICON_TERMINAL } from "../lib/icons.ts";
 import { sendMessage } from "../lib/messages.ts";
 import { buildCurlCommand, buildWgetCommand, isReauthCheckpoint, renderCommandTemplate } from "../lib/commands.ts";
+import { buildSshCurlCommand } from "../downloaders/remote.ts";
 import { compressCookieHeader, formatCookieHeader } from "../lib/cookies.ts";
 import type {
   CustomCommandTemplate,
@@ -165,11 +166,28 @@ async function runChoice(choice: DownloadChoice): Promise<void> {
 type ActiveExport =
   | { kind: "curl" }
   | { kind: "wget" }
-  | { kind: "custom"; template: CustomCommandTemplate };
+  | { kind: "custom"; template: CustomCommandTemplate }
+  | { kind: "ssh-curl"; config: RemoteDownloaderConfig; remotePath?: string };
 
 let activeExport: ActiveExport | null = null;
 let currentExportCommand = "";
 let pendingDownload: PendingDownload | null = null;
+
+function updateCommandPanelFields(): void {
+  const sshGroup = document.getElementById("sshDestinationGroup");
+  const sshInput = document.getElementById("sshDestinationInput") as HTMLInputElement | null;
+  if (!sshGroup || !sshInput) return;
+
+  if (activeExport?.kind === "ssh-curl") {
+    sshGroup.classList.remove("hidden");
+    const currentVal = activeExport.remotePath ?? activeExport.config.remoteFolder ?? "";
+    if (sshInput.value !== currentVal && activeExport.remotePath === undefined) {
+      sshInput.value = currentVal;
+    }
+  } else {
+    sshGroup.classList.add("hidden");
+  }
+}
 
 async function updateExportCommand(): Promise<void> {
   if (!activeExport || !pendingDownload) return;
@@ -187,6 +205,16 @@ async function updateExportCommand(): Promise<void> {
     command = activeExport.kind === "curl"
       ? buildCurlCommand(pendingDownload, opts)
       : buildWgetCommand(pendingDownload, opts);
+  } else if (activeExport.kind === "ssh-curl") {
+    let compressedCookie: string | undefined;
+    if (compressCookies && pendingDownload.cookies.length > 0) {
+      const header = formatCookieHeader(pendingDownload.cookies);
+      if (header) compressedCookie = await compressCookieHeader(header);
+    }
+    command = buildSshCurlCommand(activeExport.config, pendingDownload, {
+      remotePath: activeExport.remotePath,
+      compressedCookie,
+    });
   } else {
     command = await renderCommandTemplate(activeExport.template.template, pendingDownload, {
       compressCookies,
@@ -212,6 +240,7 @@ function showCommandPanel(): void {
 
 async function showBuiltinCommand(tool: "curl" | "wget"): Promise<void> {
   activeExport = { kind: tool };
+  updateCommandPanelFields();
   setBusy(true);
   await updateExportCommand();
   setBusy(false);
@@ -220,6 +249,16 @@ async function showBuiltinCommand(tool: "curl" | "wget"): Promise<void> {
 
 async function showCustomCommand(template: CustomCommandTemplate): Promise<void> {
   activeExport = { kind: "custom", template };
+  updateCommandPanelFields();
+  setBusy(true);
+  await updateExportCommand();
+  setBusy(false);
+  showCommandPanel();
+}
+
+async function showSshCurlCommand(config: RemoteDownloaderConfig): Promise<void> {
+  activeExport = { kind: "ssh-curl", config, remotePath: config.remoteFolder };
+  updateCommandPanelFields();
   setBusy(true);
   await updateExportCommand();
   setBusy(false);
@@ -282,7 +321,15 @@ async function loadDownloaderConfigs(): Promise<void> {
   const remote = (await getRemoteDownloaders()).filter((d) => d.enabled);
   remoteContainer.replaceChildren(
     ...(remote.length
-      ? remote.map((config) => createDownloaderRow(config, "remote", () => void runChoice({ kind: "remote", config })))
+      ? remote.map((config) =>
+          createDownloaderRow(config, "remote", () => {
+            if (config.type === "ssh-curl") {
+              void showSshCurlCommand(config);
+            } else {
+              void runChoice({ kind: "remote", config });
+            }
+          }),
+        )
       : [noConfigMessage("remote")]),
   );
 }
@@ -319,6 +366,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("openOptionsPageLink")?.addEventListener("click", (event) => {
     event.preventDefault();
     void openOptionsTab();
+  });
+  document.getElementById("sshDestinationInput")?.addEventListener("input", (event) => {
+    if (activeExport?.kind === "ssh-curl") {
+      activeExport.remotePath = (event.target as HTMLInputElement).value;
+      void updateExportCommand();
+    }
   });
   document.getElementById("copyCommandBtn")!.addEventListener("click", () => void copyExportCommand());
   document.getElementById("closeCommandBtn")!.addEventListener("click", () => {

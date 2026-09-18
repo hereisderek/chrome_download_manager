@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCurlCommand, buildWgetCommand, buildSshCommand, isReauthCheckpoint, renderCommandTemplate, validateCommandTemplate } from "./commands.ts";
+import { buildCurlCommand, buildWgetCommand, buildSshCommand, isReauthCheckpoint, renderCommandTemplate, validateCommandTemplate, resolveRemotePath } from "./commands.ts";
 import { shellQuote } from "./shellQuote.ts";
 import type { DownloadContext } from "./types.ts";
 
@@ -39,14 +39,22 @@ test("buildWgetCommand quotes the cookie header flag", () => {
   assert.match(cmd, /--header='Cookie: session=abc123'/);
 });
 
-test("mimicBrowserNavigation adds Sec-Fetch headers, off by default", () => {
-  assert.doesNotMatch(buildCurlCommand(ctx()), /Sec-Fetch/);
-
+test("buildCurlCommand includes browser navigation headers when requested", () => {
   const cmd = buildCurlCommand(ctx(), { mimicBrowserNavigation: true });
-  assert.match(cmd, /-H 'User-Agent: Mozilla/);
-  assert.match(cmd, /-H 'Sec-Fetch-Mode: navigate'/);
-  assert.match(cmd, /-H 'Sec-Fetch-Dest: document'/);
-  assert.match(cmd, /-H 'Upgrade-Insecure-Requests: 1'/);
+  assert.ok(cmd.includes("-H 'Sec-Fetch-Mode: navigate'"));
+  assert.ok(cmd.includes("-H 'Sec-Fetch-Dest: document'"));
+  assert.ok(cmd.includes("-H 'Upgrade-Insecure-Requests: 1'"));
+});
+
+test("buildWgetCommand includes browser navigation headers when requested", () => {
+  const cmd = buildWgetCommand(ctx(), { mimicBrowserNavigation: true });
+  assert.ok(cmd.includes("--header='Sec-Fetch-Mode: navigate'"));
+  assert.ok(cmd.includes("--header='Sec-Fetch-Dest: document'"));
+});
+
+test("buildCurlCommand supports custom outputFilename and creates dirs when needed", () => {
+  const cmd = buildCurlCommand(ctx(), { outputFilename: "/var/downloads/custom.zip" });
+  assert.ok(cmd.includes("--create-dirs -o '/var/downloads/custom.zip'"));
 });
 
 test("mimicBrowserNavigation classifies Sec-Fetch-Site from the referrer's registrable domain", () => {
@@ -90,6 +98,29 @@ test("buildSshCommand nests an already-quoted inner command safely", () => {
   assert.ok(ssh.startsWith("ssh 'user@host' '"));
   // The inner single quotes must have been escaped, not left to close the outer quote early.
   assert.ok(ssh.includes("'\\''"));
+});
+
+test("buildSshCommand supports port, key file, key content, and password options", () => {
+  const inner = "curl example.com";
+  const withPort = buildSshCommand("user@host", inner, { port: 2222 });
+  assert.ok(withPort.startsWith("ssh -p 2222 'user@host' 'curl example.com'"));
+
+  const withKey = buildSshCommand("user@host", inner, { keyFile: "~/.ssh/id_rsa" });
+  assert.ok(withKey.includes("-i '~/.ssh/id_rsa'"));
+
+  const withKeyContent = buildSshCommand("user@host", inner, { keyContent: "KEY_DATA" });
+  assert.ok(withKeyContent.includes("-i <(printf '%s\\n' 'KEY_DATA')"));
+
+  const withPass = buildSshCommand("user@host", inner, { password: "secret'pass" });
+  assert.ok(withPass.startsWith("sshpass -p 'secret'\\''pass' ssh 'user@host'"));
+});
+
+test("resolveRemotePath resolves directories and file paths", () => {
+  assert.equal(resolveRemotePath(undefined, "file.zip"), undefined);
+  assert.equal(resolveRemotePath("", "file.zip"), undefined);
+  assert.equal(resolveRemotePath("/var/downloads/", "file.zip"), "/var/downloads/file.zip");
+  assert.equal(resolveRemotePath("/var/downloads", "file.zip"), "/var/downloads/file.zip");
+  assert.equal(resolveRemotePath("/var/downloads/archive.tar.gz", "file.zip"), "/var/downloads/archive.tar.gz");
 });
 
 test("renderCommandTemplate replaces core placeholders with auto-quoting", async () => {

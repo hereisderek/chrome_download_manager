@@ -109,6 +109,41 @@
               <label for="sshUser">SSH User</label>
               <input type="text" id="sshUser" placeholder="e.g., root or username">
             </div>
+
+            <div class="form-group">
+              <label for="sshPort">SSH Port (optional)</label>
+              <input type="number" id="sshPort" placeholder="22" min="1" max="65535">
+            </div>
+
+            <div class="form-group">
+              <label for="sshRemoteFolder">Default Remote Folder (optional)</label>
+              <input type="text" id="sshRemoteFolder" placeholder="e.g., /home/user/downloads">
+            </div>
+
+            <div class="form-group">
+              <label for="sshAuthType">Authentication Method</label>
+              <select id="sshAuthType">
+                <option value="agent">SSH Agent / Default Key</option>
+                <option value="password">Password (via sshpass)</option>
+                <option value="keyFile">Private Key File Path</option>
+                <option value="keyContent">Private Key Content</option>
+              </select>
+            </div>
+
+            <div id="sshPasswordGroup" class="form-group hidden">
+              <label for="sshPassword">SSH Password</label>
+              <input type="password" id="sshPassword" placeholder="SSH password">
+            </div>
+
+            <div id="sshKeyFileGroup" class="form-group hidden">
+              <label for="sshKeyFile">Private Key File Path</label>
+              <input type="text" id="sshKeyFile" placeholder="e.g., ~/.ssh/id_ed25519 or /home/user/.ssh/id_rsa">
+            </div>
+
+            <div id="sshKeyContentGroup" class="form-group hidden">
+              <label for="sshKeyContent">Private Key Content</label>
+              <textarea id="sshKeyContent" rows="4" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+            </div>
           </div>
 
           <div id="qbittorrentFields" class="type-specific-fields hidden">

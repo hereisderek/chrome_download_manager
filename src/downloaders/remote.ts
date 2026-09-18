@@ -1,13 +1,30 @@
-import { buildCurlCommand, buildSshCommand } from "../lib/commands.ts";
+import { buildCurlCommand, buildSshCommand, resolveRemotePath } from "../lib/commands.ts";
 import { formatCookieHeader } from "../lib/cookies.ts";
 import type { DownloadContext, RemoteDownloaderConfig } from "../lib/types.ts";
 
-/** ssh-curl can't be executed from the extension - it produces a command the
- *  user runs on the remote host themselves, same as a local downloader. */
-export function buildSshCurlCommand(config: RemoteDownloaderConfig, ctx: DownloadContext): string {
+/** ssh-curl produces an SSH command that runs curl on the remote host. */
+export function buildSshCurlCommand(
+  config: RemoteDownloaderConfig,
+  ctx: DownloadContext,
+  opts: { remotePath?: string; compressedCookie?: string } = {},
+): string {
   if (!config.sshHost) throw new Error("Remote downloader is missing an SSH host");
   const target = config.sshUser ? `${config.sshUser}@${config.sshHost}` : config.sshHost;
-  return buildSshCommand(target, buildCurlCommand(ctx, { mimicBrowserNavigation: true }));
+  const defaultFilename = ctx.filename || "download";
+  const outputPath = resolveRemotePath(opts.remotePath || config.remoteFolder, defaultFilename);
+
+  const curlCmd = buildCurlCommand(ctx, {
+    mimicBrowserNavigation: true,
+    compressedCookie: opts.compressedCookie,
+    outputFilename: outputPath,
+  });
+
+  return buildSshCommand(target, curlCmd, {
+    port: config.sshPort,
+    password: config.sshPassword,
+    keyFile: config.sshKeyFile,
+    keyContent: config.sshKeyContent,
+  });
 }
 
 export async function sendToQBittorrent(config: RemoteDownloaderConfig, ctx: DownloadContext): Promise<void> {

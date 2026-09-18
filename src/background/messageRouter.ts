@@ -42,9 +42,7 @@ async function routeDownload(choice: DownloadChoice, ctx: DownloadContext): Prom
 
     case "remote": {
       if (choice.config.type === "ssh-curl") {
-        const command = buildSshCurlCommand(choice.config, ctx);
-        await downloadTextFile(`remote_download_${Date.now()}.sh`, command);
-        notify("Remote Download Command", "SSH command saved to a file - open it to copy the command.");
+        notify("SSH Command", "Please copy the SSH command from the download popup.");
         return;
       }
       if (choice.config.type === "qbittorrent") {

@@ -30,7 +30,7 @@ This file tracks active tasks, bugs, and upcoming features for the Chrome Downlo
   - In the Options page Command Template form, validate all placeholders used in the template string when saving.
   - If invalid/unrecognized placeholders or malformed placeholder syntax are detected, display an error message in red and prevent saving.
 
-- [ ] **Fix cURL (SSH) Remote Downloader downloading a .txt file instead of remote execution**
+- [x] **Fix cURL (SSH) Remote Downloader downloading a .txt file instead of remote execution**
   - **Issue**: When using a cURL (SSH) remote downloader, selecting it currently downloads a `.txt` file containing the command to the local machine rather than triggering or managing remote execution properly.
   - **Download path in popup**: When selecting the remote downloader in the popup, allow the user to optionally specify the target folder/file to download the file to on the remote server.
   - **Auth options in config**: In the remote downloader config for cURL (SSH), allow the user to optionally specify:

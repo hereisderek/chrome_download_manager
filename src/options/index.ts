@@ -52,7 +52,13 @@ function switchTab(tab: string): void {
 function remoteAddress(config: RemoteDownloaderConfig): string | undefined {
   if (config.type === "qbittorrent") return config.webUIUrl;
   if (config.type === "aria2") return config.rpcUrl;
-  if (config.type === "ssh-curl") return config.sshHost ? `${config.sshUser ? `${config.sshUser}@` : ""}${config.sshHost}` : undefined;
+  if (config.type === "ssh-curl") {
+    if (!config.sshHost) return undefined;
+    const user = config.sshUser ? `${config.sshUser}@` : "";
+    const port = config.sshPort && config.sshPort !== 22 ? `:${config.sshPort}` : "";
+    const folder = config.remoteFolder ? ` (${config.remoteFolder})` : "";
+    return `${user}${config.sshHost}${port}${folder}`;
+  }
   return undefined;
 }
 
@@ -186,10 +192,20 @@ async function deleteLocalDownloader(index: number): Promise<void> {
 
 // ---------- remote form ----------
 
+function updateSshAuthFields(): void {
+  const authType = $<HTMLSelectElement>("sshAuthType").value;
+  $("sshPasswordGroup").classList.toggle("hidden", authType !== "password");
+  $("sshKeyFileGroup").classList.toggle("hidden", authType !== "keyFile");
+  $("sshKeyContentGroup").classList.toggle("hidden", authType !== "keyContent");
+}
+
 function updateRemoteFields(type: RemoteDownloaderType): void {
   $("sshCurlFields").classList.toggle("hidden", type !== "ssh-curl");
   $("qbittorrentFields").classList.toggle("hidden", type !== "qbittorrent");
   $("aria2Fields").classList.toggle("hidden", type !== "aria2");
+  if (type === "ssh-curl") {
+    updateSshAuthFields();
+  }
 }
 
 function showRemoteForm(data: RemoteDownloaderConfig | null, index: number): void {
@@ -202,11 +218,26 @@ function showRemoteForm(data: RemoteDownloaderConfig | null, index: number): voi
     $<HTMLInputElement>("remoteEnabled").checked = data.enabled;
     $<HTMLInputElement>("sshHost").value = data.sshHost ?? "";
     $<HTMLInputElement>("sshUser").value = data.sshUser ?? "";
+    $<HTMLInputElement>("sshPort").value = data.sshPort ? String(data.sshPort) : "";
+    $<HTMLInputElement>("sshRemoteFolder").value = data.remoteFolder ?? "";
+    $<HTMLSelectElement>("sshAuthType").value =
+      data.sshAuthType ??
+      (data.sshPassword ? "password" : data.sshKeyFile ? "keyFile" : data.sshKeyContent ? "keyContent" : "agent");
+    $<HTMLInputElement>("sshPassword").value = data.sshPassword ?? "";
+    $<HTMLInputElement>("sshKeyFile").value = data.sshKeyFile ?? "";
+    $<HTMLTextAreaElement>("sshKeyContent").value = data.sshKeyContent ?? "";
     $<HTMLInputElement>("qbWebUIUrl").value = data.webUIUrl ?? "";
     $<HTMLInputElement>("qbUsername").value = data.username ?? "";
     $<HTMLInputElement>("qbPassword").value = data.password ?? "";
     $<HTMLInputElement>("aria2RpcUrl").value = data.rpcUrl ?? "";
     $<HTMLInputElement>("aria2Token").value = data.token ?? "";
+  } else {
+    $<HTMLInputElement>("sshPort").value = "";
+    $<HTMLInputElement>("sshRemoteFolder").value = "";
+    $<HTMLSelectElement>("sshAuthType").value = "agent";
+    $<HTMLInputElement>("sshPassword").value = "";
+    $<HTMLInputElement>("sshKeyFile").value = "";
+    $<HTMLTextAreaElement>("sshKeyContent").value = "";
   }
   $<HTMLSelectElement>("remoteType").value = type;
   $<HTMLInputElement>("remoteIndex").value = String(index);
@@ -226,22 +257,34 @@ async function saveRemoteDownloader(): Promise<void> {
   const type = $<HTMLSelectElement>("remoteType").value as RemoteDownloaderType;
 
   const downloader: RemoteDownloaderConfig = {
-    name: $<HTMLInputElement>("remoteName").value,
+    name: $<HTMLInputElement>("remoteName").value.trim(),
     type,
-    description: $<HTMLInputElement>("remoteDescription").value || undefined,
+    description: $<HTMLInputElement>("remoteDescription").value.trim() || undefined,
     enabled: $<HTMLInputElement>("remoteEnabled").checked,
   };
 
   if (type === "ssh-curl") {
-    downloader.sshHost = $<HTMLInputElement>("sshHost").value;
-    downloader.sshUser = $<HTMLInputElement>("sshUser").value || undefined;
+    downloader.sshHost = $<HTMLInputElement>("sshHost").value.trim();
+    downloader.sshUser = $<HTMLInputElement>("sshUser").value.trim() || undefined;
+    const portVal = $<HTMLInputElement>("sshPort").value.trim();
+    downloader.sshPort = portVal ? parseInt(portVal, 10) : undefined;
+    downloader.remoteFolder = $<HTMLInputElement>("sshRemoteFolder").value.trim() || undefined;
+    const authType = $<HTMLSelectElement>("sshAuthType").value as RemoteDownloaderConfig["sshAuthType"];
+    downloader.sshAuthType = authType;
+    if (authType === "password") {
+      downloader.sshPassword = $<HTMLInputElement>("sshPassword").value;
+    } else if (authType === "keyFile") {
+      downloader.sshKeyFile = $<HTMLInputElement>("sshKeyFile").value.trim();
+    } else if (authType === "keyContent") {
+      downloader.sshKeyContent = $<HTMLTextAreaElement>("sshKeyContent").value.trim();
+    }
   } else if (type === "qbittorrent") {
-    downloader.webUIUrl = $<HTMLInputElement>("qbWebUIUrl").value;
-    downloader.username = $<HTMLInputElement>("qbUsername").value;
+    downloader.webUIUrl = $<HTMLInputElement>("qbWebUIUrl").value.trim();
+    downloader.username = $<HTMLInputElement>("qbUsername").value.trim();
     downloader.password = $<HTMLInputElement>("qbPassword").value;
   } else {
-    downloader.rpcUrl = $<HTMLInputElement>("aria2RpcUrl").value;
-    downloader.token = $<HTMLInputElement>("aria2Token").value || undefined;
+    downloader.rpcUrl = $<HTMLInputElement>("aria2RpcUrl").value.trim();
+    downloader.token = $<HTMLInputElement>("aria2Token").value.trim() || undefined;
   }
 
   if (index === -1) remoteDownloaders.push(downloader);
@@ -416,6 +459,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   $<HTMLSelectElement>("remoteType").addEventListener("change", (event) => {
     updateRemoteFields((event.target as HTMLSelectElement).value as RemoteDownloaderType);
   });
+  $<HTMLSelectElement>("sshAuthType").addEventListener("change", updateSshAuthFields);
 
   $("addCustomBtn").addEventListener("click", () => showCustomForm(null, -1));
   $("cancelCustomBtn").addEventListener("click", hideCustomForm);

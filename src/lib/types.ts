@@ -32,6 +32,12 @@ export interface RemoteDownloaderConfig {
   // ssh-curl
   sshHost?: string;
   sshUser?: string;
+  sshPort?: number;
+  sshPassword?: string;
+  sshAuthType?: "agent" | "password" | "keyFile" | "keyContent";
+  sshKeyFile?: string;
+  sshKeyContent?: string;
+  remoteFolder?: string;
   // qbittorrent
   webUIUrl?: string;
   username?: string;

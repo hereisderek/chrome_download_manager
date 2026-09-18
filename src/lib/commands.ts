@@ -56,13 +56,19 @@ export interface CommandOptions {
   mimicBrowserNavigation?: boolean;
   binary?: string;
   compressedCookie?: string;
+  outputFilename?: string;
 }
 
 export function buildCurlCommand(
   ctx: DownloadContext,
   opts: CommandOptions = {},
 ): string {
-  const parts = [shellQuote(opts.binary ?? "curl"), "-L", "--location-trusted", "-o", shellQuote(resolveFilename(ctx))];
+  const output = opts.outputFilename ?? resolveFilename(ctx);
+  const parts = [shellQuote(opts.binary ?? "curl"), "-L", "--location-trusted"];
+  if (opts.outputFilename && opts.outputFilename.includes("/")) {
+    parts.push("--create-dirs");
+  }
+  parts.push("-o", shellQuote(output));
   if (opts.compressedCookie) {
     parts.push("-b", `"$(printf '%s' ${shellQuote(opts.compressedCookie)} | base64 -d | gzip -dc)"`);
   } else {
@@ -105,8 +111,42 @@ export function buildLocalGuiDownloaderCommand(config: LocalDownloaderConfig, ct
   return parts.join(" ");
 }
 
-export function buildSshCommand(target: string, remoteCommand: string): string {
-  return `ssh ${shellQuote(target)} ${shellQuote(remoteCommand)}`;
+export function resolveRemotePath(folderOrFile: string | undefined, defaultFilename: string): string | undefined {
+  if (!folderOrFile || !folderOrFile.trim()) return undefined;
+  const trimmed = folderOrFile.trim();
+  if (trimmed.endsWith("/")) {
+    return `${trimmed}${defaultFilename}`;
+  }
+  const lastSegment = trimmed.split("/").pop() ?? "";
+  if (lastSegment && !lastSegment.includes(".")) {
+    return `${trimmed}/${defaultFilename}`;
+  }
+  return trimmed;
+}
+
+export interface SshCommandOptions {
+  port?: number;
+  password?: string;
+  keyFile?: string;
+  keyContent?: string;
+}
+
+export function buildSshCommand(target: string, remoteCommand: string, opts: SshCommandOptions = {}): string {
+  const sshArgs: string[] = [];
+  if (opts.port && opts.port !== 22) {
+    sshArgs.push("-p", String(opts.port));
+  }
+  if (opts.keyFile) {
+    sshArgs.push("-i", shellQuote(opts.keyFile));
+  } else if (opts.keyContent) {
+    sshArgs.push("-i", `<(printf '%s\\n' ${shellQuote(opts.keyContent)})`);
+  }
+  sshArgs.push(shellQuote(target), shellQuote(remoteCommand));
+
+  if (opts.password) {
+    return `sshpass -p ${shellQuote(opts.password)} ssh ${sshArgs.join(" ")}`;
+  }
+  return `ssh ${sshArgs.join(" ")}`;
 }
 
 /**
@@ -268,10 +308,8 @@ export function validateCommandTemplate(template: string): { valid: boolean; err
     return { valid: false, error: "Command template cannot be empty." };
   }
 
-  // Check for unclosed < or {
-  const unclosedAngle = /<[^>]*$/;
-  const unclosedBrace = /\{[^}]*$/;
-  if (unclosedAngle.test(template) || unclosedBrace.test(template)) {
+  // Check for unclosed or nested < or {
+  if (/<[^>]*</.test(template) || /\{[^}]*\{/.test(template) || /<[^>]*$/.test(template) || /\{[^}]*$/.test(template)) {
     return { valid: false, error: "Malformed placeholder: found unclosed '<' or '{'." };
   }
 
