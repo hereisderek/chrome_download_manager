@@ -5,6 +5,13 @@ import type { DownloadContext, LocalDownloaderConfig } from "./types.ts";
 const DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+function getUserAgent(): string {
+  if (typeof navigator !== "undefined" && navigator.userAgent && !navigator.userAgent.startsWith("Node.js")) {
+    return navigator.userAgent;
+  }
+  return DEFAULT_USER_AGENT;
+}
+
 /** Every value below comes from the page that served the download (URL, filename,
  *  cookies, referrer) and ends up in a shell script the user later executes, so
  *  every interpolation goes through shellQuote() - see shellQuote.ts. */
@@ -54,7 +61,7 @@ export function buildCurlCommand(
   if (cookieHeader) parts.push("-b", shellQuote(cookieHeader));
   if (ctx.referrer) parts.push("-H", shellQuote(`Referer: ${ctx.referrer}`));
   if (opts.mimicBrowserNavigation) {
-    parts.push("-H", shellQuote(`User-Agent: ${DEFAULT_USER_AGENT}`));
+    parts.push("-H", shellQuote(`User-Agent: ${getUserAgent()}`));
     for (const [name, value] of browserNavigationHeaders(ctx)) parts.push("-H", shellQuote(`${name}: ${value}`));
   }
   parts.push(shellQuote(ctx.url));
@@ -67,7 +74,7 @@ export function buildWgetCommand(ctx: DownloadContext, opts: { mimicBrowserNavig
   if (cookieHeader) parts.push(`--header=${shellQuote(`Cookie: ${cookieHeader}`)}`);
   if (ctx.referrer) parts.push(`--referer=${shellQuote(ctx.referrer)}`);
   if (opts.mimicBrowserNavigation) {
-    parts.push(`--user-agent=${shellQuote(DEFAULT_USER_AGENT)}`);
+    parts.push(`--user-agent=${shellQuote(getUserAgent())}`);
     for (const [name, value] of browserNavigationHeaders(ctx)) parts.push(`--header=${shellQuote(`${name}: ${value}`)}`);
   }
   parts.push(shellQuote(ctx.url));

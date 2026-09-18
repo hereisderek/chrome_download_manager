@@ -15,6 +15,56 @@
  * rare). Upgrade path if that ever bites: resolve the real registrable domain
  * with a public-suffix-list package instead of assuming two labels.
  */
+/**
+ * Checks if a cookie is valid to send to targetUrl based on domain, path, and security rules.
+ * Sibling subdomains (e.g. mail.google.com, drive.google.com) are strictly excluded from
+ * being sent to other hosts (e.g. takeout-download.usercontent.google.com).
+ */
+export function cookieMatchesUrl(cookie: chrome.cookies.Cookie, targetUrl: string): boolean {
+  try {
+    const parsed = new URL(targetUrl);
+    const hostname = parsed.hostname.toLowerCase();
+    const cookieDomain = (cookie.domain || "").toLowerCase().replace(/^\./, "");
+
+    // Path check: cookie path must match URL path prefix
+    const pathname = parsed.pathname || "/";
+    const cookiePath = cookie.path || "/";
+    if (!pathname.startsWith(cookiePath) && cookiePath !== "/") {
+      return false;
+    }
+
+    // Secure check: secure cookies should only be sent over HTTPS
+    if (cookie.secure && parsed.protocol !== "https:") {
+      return false;
+    }
+
+    // Host-only cookie must match exact hostname
+    if (cookie.hostOnly) {
+      return hostname === cookieDomain;
+    }
+
+    // Domain cookie: hostname must match or be a subdomain of cookieDomain
+    if (hostname === cookieDomain || hostname.endsWith("." + cookieDomain)) {
+      return true;
+    }
+
+    // Special case for Google UserContent:
+    // takeout-download.usercontent.google.com / *.googleusercontent.com
+    // accepts root .google.com cookies (e.g. SID, HSID, SSID, APISID, etc.)
+    // but MUST NOT receive sibling subdomain cookies (e.g. mail.google.com, drive.google.com)
+    if (
+      (hostname.endsWith("googleusercontent.com") || hostname.endsWith("usercontent.google.com")) &&
+      cookieDomain === "google.com"
+    ) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export async function getCookiesForUrl(
   url: string,
   extraUrls: (string | null | undefined)[] = [],
@@ -32,7 +82,7 @@ export async function getCookiesForUrl(
         if (domainParts.length > 2) {
           domainsToQuery.add(domainParts.slice(-2).join("."));
         }
-        if (domain.endsWith("googleusercontent.com")) {
+        if (domain.endsWith("googleusercontent.com") || domain.endsWith("usercontent.google.com")) {
           domainsToQuery.add("google.com");
         }
       } catch {
@@ -46,13 +96,25 @@ export async function getCookiesForUrl(
       if (found) cookies.push(...found);
     }
 
-    const seen = new Set<string>();
-    return cookies.filter((c) => {
-      const key = `${c.name}@${c.domain}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // Filter to cookies that actually match target URL (excludes unrelated subdomains)
+    const validCookies = cookies.filter((c) => cookieMatchesUrl(c, url));
+
+    // Deduplicate by cookie name, preferring more specific domain matches
+    const byName = new Map<string, chrome.cookies.Cookie>();
+    for (const c of validCookies) {
+      const existing = byName.get(c.name);
+      if (!existing) {
+        byName.set(c.name, c);
+      } else {
+        const existingLen = (existing.domain || "").length;
+        const newLen = (c.domain || "").length;
+        if (newLen > existingLen) {
+          byName.set(c.name, c);
+        }
+      }
+    }
+
+    return Array.from(byName.values());
   } catch (error) {
     console.error("Error getting cookies:", error);
     return [];
