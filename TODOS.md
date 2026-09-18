@@ -61,3 +61,12 @@ This file tracks active tasks, bugs, and upcoming features for the Chrome Downlo
   - **Root Cause**: In `downloadInterceptor.ts`, calling `suggest()` synchronously while simultaneously calling `chrome.downloads.cancel(item.id)` creates a race condition where fast/small downloads finish before `cancel()` completes. Calling `cancel` on a completed download fails with `Download must be in progress`. Furthermore, calling `chrome.downloads.erase({ id: item.id })` with `.catch()` leaves `chrome.runtime.lastError` unchecked in Chromium.
   - **Fix**: Do not call `suggest()` when canceling an intercepted download. Catch and clear `chrome.runtime.lastError` via callbacks on both `chrome.downloads.cancel` and `chrome.downloads.erase`.
 
+- [x] **Support Direct Local Downloader Invocation & Eliminate .txt File Downloads**
+  - **Issue**: Clicking a Local Downloader (FDM, IDM, cURL, Wget) previously downloaded a `download_command_<timestamp>.txt` file instead of directly triggering the download in the application.
+  - **Fix**:
+    1. **Eliminated `.txt` file generation entirely**: Removed all calls to `downloadTextFile` for local downloaders.
+    2. **1-Click Local RPC / API Support**: Added native 1-click downloads for Motrix (`http://127.0.0.1:16800/jsonrpc`), JDownloader 2 (`http://127.0.0.1:9666/flash/add`), and Aria2 (`http://127.0.0.1:6800/jsonrpc`), communicating directly from Chrome extension JavaScript via HTTP/RPC with zero extra files or terminal scripts required on the user's computer.
+    3. **Custom URL Protocol Schemes**: Supported opening registered OS URL schemes (`motrix://{url}`, `thunder://{url}`, etc.) directly via browser navigation.
+    4. **Unified Popup Command Panel for CLI Tools**: For CLI tools (cURL, Wget, FDM, IDM), clicking them displays the command panel directly beneath the item with 1-click **Copy Command** and compression options.
+
+

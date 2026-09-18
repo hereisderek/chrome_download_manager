@@ -113,7 +113,7 @@ export function buildWgetCommand(ctx: DownloadContext, opts: CommandOptions = {}
 /** FDM and IDM both expose a "queue this URL" CLI with the same shape:
  *  executable, URL, an optional cookie flag, an optional referrer flag. */
 export function buildLocalGuiDownloaderCommand(config: LocalDownloaderConfig, ctx: DownloadContext): string {
-  const parts = [shellQuote(config.path), shellQuote(ctx.url)];
+  const parts = [shellQuote(config.path || config.type), shellQuote(ctx.url)];
   const cookieHeader = formatCookieHeader(ctx.cookies);
   if (cookieHeader) parts.push("--cookies", shellQuote(cookieHeader));
   if (ctx.referrer) parts.push("--referer", shellQuote(ctx.referrer));

@@ -1,10 +1,10 @@
-import { buildLocalCommand } from "../downloaders/local.ts";
+import { routeLocalDownload } from "../downloaders/local.ts";
 import { buildSshCurlCommand, sendToAria2, sendToQBittorrent } from "../downloaders/remote.ts";
 import { buildCurlCommand, buildWgetCommand, isReauthCheckpoint } from "../lib/commands.ts";
 import { compressCookieHeader, formatCookieHeader } from "../lib/cookies.ts";
 import type { ExportTool, Message, Response } from "../lib/messages.ts";
 import type { DownloadChoice, DownloadContext } from "../lib/types.ts";
-import { downloadTextFile, notify } from "./effects.ts";
+import { notify } from "./effects.ts";
 import { closeDownloadPopup } from "./popupWindow.ts";
 import {
   allowDownload,
@@ -45,9 +45,8 @@ async function routeDownload(choice: DownloadChoice, ctx: DownloadContext): Prom
     }
 
     case "local": {
-      const command = buildLocalCommand(choice.config, ctx);
-      await downloadTextFile(`download_command_${Date.now()}.txt`, command);
-      notify("Download Forwarded to Local Manager", "Command saved to a text file - open it to copy the command.");
+      await routeLocalDownload(choice.config, ctx);
+      notify("Download Started", `Forwarded download to ${choice.config.name}.`);
       return;
     }
 

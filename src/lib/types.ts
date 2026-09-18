@@ -13,13 +13,16 @@ export interface PendingDownload extends DownloadContext {
   timestamp: number;
 }
 
-export type LocalDownloaderType = "fdm" | "idm" | "curl" | "wget";
+export type LocalDownloaderType = "motrix" | "jdownloader" | "aria2" | "protocol" | "fdm" | "idm" | "curl" | "wget";
 export type RemoteDownloaderType = "ssh-curl" | "qbittorrent" | "aria2";
 
 export interface LocalDownloaderConfig {
   name: string;
   type: LocalDownloaderType;
-  path: string;
+  path?: string;
+  rpcUrl?: string;
+  token?: string;
+  protocolPattern?: string;
   description?: string;
   enabled: boolean;
 }

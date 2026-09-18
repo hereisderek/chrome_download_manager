@@ -21,7 +21,7 @@
     </div>
 
     <div id="localTab" class="tab-content active">
-      <p class="description">Local download managers installed on your computer. The extension generates a command with cookies that you run yourself.</p>
+      <p class="description">Local download managers installed on your computer. Supports direct 1-click downloads for Motrix, JDownloader, and Aria2 without any extra scripts, or command export for CLI tools.</p>
 
       <div id="localDownloadersList"></div>
 
@@ -34,23 +34,48 @@
 
           <div class="form-group">
             <label for="localName">Name</label>
-            <input type="text" id="localName" required placeholder="e.g., Free Download Manager">
+            <input type="text" id="localName" required placeholder="e.g., Motrix">
           </div>
 
           <div class="form-group">
             <label for="localType">Type</label>
             <select id="localType" required>
-              <option value="fdm">Free Download Manager (FDM)</option>
-              <option value="idm">Internet Download Manager (IDM)</option>
-              <option value="curl">cURL</option>
-              <option value="wget">wget</option>
+              <option value="motrix">Motrix (1-Click Local RPC)</option>
+              <option value="jdownloader">JDownloader 2 (1-Click Click'n'Load)</option>
+              <option value="aria2">Aria2 (1-Click Local RPC)</option>
+              <option value="protocol">Custom URL Protocol (e.g. motrix://, thunder://)</option>
+              <option value="curl">cURL (Command-line)</option>
+              <option value="wget">wget (Command-line)</option>
+              <option value="fdm">Free Download Manager (FDM CLI)</option>
+              <option value="idm">Internet Download Manager (IDM CLI)</option>
             </select>
           </div>
 
+          <div id="localRpcGroup" class="form-group">
+            <label for="localRpcUrl">RPC / API Endpoint</label>
+            <input type="url" id="localRpcUrl" placeholder="http://127.0.0.1:16800/jsonrpc">
+            <small id="localRpcHint">Local API endpoint. Motrix default: http://127.0.0.1:16800/jsonrpc, JDownloader: http://127.0.0.1:9666/flash/add, Aria2: http://127.0.0.1:6800/jsonrpc</small>
+          </div>
+
+          <div id="localTokenGroup" class="form-group hidden">
+            <label for="localToken">Secret Token (optional)</label>
+            <input type="text" id="localToken" placeholder="RPC secret token if configured">
+          </div>
+
+          <div id="localProtocolGroup" class="form-group hidden">
+            <label for="localProtocolPattern">Protocol Scheme Pattern</label>
+            <input type="text" id="localProtocolPattern" placeholder="motrix://{url}">
+            <small>Supported placeholders: {url}, {raw_url}, {filename}</small>
+          </div>
+
+          <div id="localPathGroup" class="form-group hidden">
+            <label for="localPath">Executable Path / Binary Name</label>
+            <input type="text" id="localPath" placeholder="e.g., curl, wget, or full path">
+            <small>Used for generating the CLI command in the popup</small>
+          </div>
+
           <div class="form-group">
-            <label for="localPath">Executable Path</label>
-            <input type="text" id="localPath" required placeholder="e.g., /usr/local/bin/fdm or C:\Program Files\FDM\fdm.exe">
-            <small>Full path to the downloader executable</small>
+            <small id="localTypeInfoText" style="color: var(--color-primary); font-weight: 500; display: block;"></small>
           </div>
 
           <div class="form-group">

@@ -2,6 +2,7 @@ import { getCustomCommands, getLocalDownloaders, getRemoteDownloaders } from "..
 import { ICON_ALERT_CIRCLE, ICON_CHECK_CIRCLE, ICON_CLIPBOARD, ICON_CLOUD_DOWNLOAD, ICON_FILE, ICON_SERVER, ICON_TERMINAL } from "../lib/icons.ts";
 import { sendMessage } from "../lib/messages.ts";
 import { buildCurlCommand, buildWgetCommand, compressShellCommand, isReauthCheckpoint, renderCommandTemplate } from "../lib/commands.ts";
+import { buildLocalCommand } from "../downloaders/local.ts";
 import { buildSshCurlCommand } from "../downloaders/remote.ts";
 import { formatCookieHeader } from "../lib/cookies.ts";
 import type {
@@ -15,13 +16,16 @@ import type {
 } from "../lib/types.ts";
 
 const DESCRIPTIONS: Record<LocalDownloaderType | RemoteDownloaderType, string> = {
-  fdm: "Free Download Manager",
-  idm: "Internet Download Manager",
+  motrix: "Motrix (1-Click Local RPC)",
+  jdownloader: "JDownloader 2 (1-Click)",
+  aria2: "aria2 RPC",
+  protocol: "Custom URL Protocol",
+  fdm: "Free Download Manager CLI",
+  idm: "Internet Download Manager CLI",
   curl: "cURL command-line tool",
   wget: "Wget command-line tool",
   "ssh-curl": "cURL over SSH",
   qbittorrent: "qBittorrent Web UI",
-  aria2: "aria2 RPC",
 };
 
 function formatBytes(bytes: number | null): string {
@@ -166,6 +170,7 @@ type ActiveExport =
   | { kind: "curl" }
   | { kind: "wget" }
   | { kind: "custom"; template: CustomCommandTemplate }
+  | { kind: "local"; config: LocalDownloaderConfig }
   | {
       kind: "ssh-curl";
       config: RemoteDownloaderConfig;
@@ -215,6 +220,8 @@ async function updateExportCommand(): Promise<void> {
     command = activeExport.kind === "curl"
       ? buildCurlCommand(pendingDownload, opts)
       : buildWgetCommand(pendingDownload, opts);
+  } else if (activeExport.kind === "local") {
+    command = buildLocalCommand(activeExport.config, pendingDownload);
   } else if (activeExport.kind === "ssh-curl") {
     const effectiveConfig: RemoteDownloaderConfig = {
       ...activeExport.config,
@@ -255,6 +262,15 @@ function showCommandPanel(targetElement?: HTMLElement): void {
 
 async function showBuiltinCommand(tool: "curl" | "wget", targetElement: HTMLElement): Promise<void> {
   activeExport = { kind: tool };
+  updateCommandPanelFields();
+  setBusy(true);
+  await updateExportCommand();
+  setBusy(false);
+  showCommandPanel(targetElement);
+}
+
+async function showLocalCommand(config: LocalDownloaderConfig, targetElement: HTMLElement): Promise<void> {
+  activeExport = { kind: "local", config };
   updateCommandPanelFields();
   setBusy(true);
   await updateExportCommand();
@@ -335,7 +351,16 @@ async function loadDownloaderConfigs(): Promise<void> {
   const local = (await getLocalDownloaders()).filter((d) => d.enabled);
   localContainer.replaceChildren(
     ...(local.length
-      ? local.map((config) => createDownloaderRow(config, "local", () => void runChoice({ kind: "local", config })))
+      ? local.map((config) =>
+          createDownloaderRow(config, "local", (event) => {
+            const isOneClick = ["motrix", "jdownloader", "aria2", "protocol"].includes(config.type);
+            if (isOneClick) {
+              void runChoice({ kind: "local", config });
+            } else {
+              void showLocalCommand(config, event.currentTarget as HTMLElement);
+            }
+          }),
+        )
       : [noConfigMessage("local")]),
   );
 

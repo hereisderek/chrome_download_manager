@@ -71,7 +71,14 @@ function createDownloaderCard(
   if (config.description) body.push(el("p", {}, [config.description]));
   if (kind === "local") {
     const local = config as LocalDownloaderConfig;
-    body.push(el("p", { className: "path" }, [el("strong", {}, ["Path: "]), local.path]));
+    if (local.type === "motrix" || local.type === "jdownloader" || local.type === "aria2") {
+      const defaultRpc = local.type === "motrix" ? "http://127.0.0.1:16800/jsonrpc" : local.type === "jdownloader" ? "http://127.0.0.1:9666/flash/add" : "http://127.0.0.1:6800/jsonrpc";
+      body.push(el("p", { className: "path" }, [el("strong", {}, ["Endpoint: "]), local.rpcUrl || defaultRpc]));
+    } else if (local.type === "protocol") {
+      body.push(el("p", { className: "path" }, [el("strong", {}, ["Protocol: "]), local.protocolPattern || "motrix://{url}"]));
+    } else if (local.path) {
+      body.push(el("p", { className: "path" }, [el("strong", {}, ["Path: "]), local.path]));
+    }
   } else {
     const address = remoteAddress(config as RemoteDownloaderConfig);
     if (address) body.push(el("p", { className: "path" }, [el("strong", {}, ["Address: "]), address]));
@@ -140,15 +147,53 @@ function showStatusMessage(message: string, kind: "success" | "error" = "success
 
 // ---------- local form ----------
 
+function updateLocalFields(): void {
+  const type = $<HTMLSelectElement>("localType").value as LocalDownloaderType;
+  const isRpc = type === "motrix" || type === "jdownloader" || type === "aria2";
+  const isProtocol = type === "protocol";
+  const isCli = type === "curl" || type === "wget" || type === "fdm" || type === "idm";
+
+  $("localRpcGroup").classList.toggle("hidden", !isRpc);
+  $("localTokenGroup").classList.toggle("hidden", type !== "aria2" && type !== "motrix");
+  $("localProtocolGroup").classList.toggle("hidden", !isProtocol);
+  $("localPathGroup").classList.toggle("hidden", !isCli);
+
+  const rpcInput = $<HTMLInputElement>("localRpcUrl");
+  const infoText = $("localTypeInfoText");
+
+  if (type === "motrix") {
+    if (!rpcInput.value) rpcInput.value = "http://127.0.0.1:16800/jsonrpc";
+    infoText.textContent = "⚡ 1-Click Download: Direct connection to Motrix via local Aria2 RPC. Make sure Motrix is running.";
+  } else if (type === "jdownloader") {
+    if (!rpcInput.value) rpcInput.value = "http://127.0.0.1:9666/flash/add";
+    infoText.textContent = "⚡ 1-Click Download: Direct connection to JDownloader 2 via Click'n'Load. Make sure JDownloader is running.";
+  } else if (type === "aria2") {
+    if (!rpcInput.value) rpcInput.value = "http://127.0.0.1:6800/jsonrpc";
+    infoText.textContent = "⚡ 1-Click Download: Direct connection to local Aria2 via JSON-RPC.";
+  } else if (type === "protocol") {
+    infoText.textContent = "🔗 Protocol: Triggers the desktop app registered with your OS for this scheme.";
+  } else {
+    infoText.textContent = "📋 CLI Export: Displays the shell command in the popup for convenient 1-click copying.";
+  }
+}
+
 function showLocalForm(data: LocalDownloaderConfig | null, index: number): void {
   $<HTMLFormElement>("localForm").reset();
   if (data) {
     $<HTMLInputElement>("localName").value = data.name;
     $<HTMLSelectElement>("localType").value = data.type;
-    $<HTMLInputElement>("localPath").value = data.path;
+    $<HTMLInputElement>("localRpcUrl").value = data.rpcUrl ?? "";
+    $<HTMLInputElement>("localToken").value = data.token ?? "";
+    $<HTMLInputElement>("localProtocolPattern").value = data.protocolPattern ?? "";
+    $<HTMLInputElement>("localPath").value = data.path ?? "";
     $<HTMLInputElement>("localDescription").value = data.description ?? "";
     $<HTMLInputElement>("localEnabled").checked = data.enabled;
+  } else {
+    $<HTMLSelectElement>("localType").value = "motrix";
+    $<HTMLInputElement>("localName").value = "Motrix";
+    $<HTMLInputElement>("localRpcUrl").value = "http://127.0.0.1:16800/jsonrpc";
   }
+  updateLocalFields();
   $<HTMLInputElement>("localIndex").value = String(index);
   $("localDownloaderForm").classList.remove("hidden");
   $("localDownloaderForm").scrollIntoView({ behavior: "smooth" });
@@ -161,11 +206,15 @@ function hideLocalForm(): void {
 
 async function saveLocalDownloader(): Promise<void> {
   const index = Number($<HTMLInputElement>("localIndex").value);
+  const type = $<HTMLSelectElement>("localType").value as LocalDownloaderType;
   const downloader: LocalDownloaderConfig = {
-    name: $<HTMLInputElement>("localName").value,
-    type: $<HTMLSelectElement>("localType").value as LocalDownloaderType,
-    path: $<HTMLInputElement>("localPath").value,
-    description: $<HTMLInputElement>("localDescription").value || undefined,
+    name: $<HTMLInputElement>("localName").value.trim(),
+    type,
+    rpcUrl: $<HTMLInputElement>("localRpcUrl").value.trim() || undefined,
+    token: $<HTMLInputElement>("localToken").value.trim() || undefined,
+    protocolPattern: $<HTMLInputElement>("localProtocolPattern").value.trim() || undefined,
+    path: $<HTMLInputElement>("localPath").value.trim() || undefined,
+    description: $<HTMLInputElement>("localDescription").value.trim() || undefined,
     enabled: $<HTMLInputElement>("localEnabled").checked,
   };
 
@@ -449,6 +498,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
     void saveLocalDownloader();
   });
+  $<HTMLSelectElement>("localType").addEventListener("change", updateLocalFields);
 
   $("addRemoteBtn").addEventListener("click", () => showRemoteForm(null, -1));
   $("cancelRemoteBtn").addEventListener("click", hideRemoteForm);
