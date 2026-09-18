@@ -3,6 +3,7 @@ export interface DownloadContext {
   filename: string | null;
   cookies: chrome.cookies.Cookie[];
   referrer: string | null;
+  originalUrl?: string | null;
 }
 
 export interface PendingDownload extends DownloadContext {

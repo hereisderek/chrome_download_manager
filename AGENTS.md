@@ -55,10 +55,11 @@ src/
 ### Data flow
 
 ```
-chrome.downloads.onCreated (background/downloadInterceptor.ts)
-  → cancel() + erase() the original download immediately
-  → item.finalUrl (Chrome's own post-redirect URL) || item.url as the real target
-  → getCookiesForUrl() for that URL's domain + registrable root domain
+chrome.downloads.onDeterminingFilename (background/downloadInterceptor.ts)
+  → cancel() + erase() the original download immediately, call suggest()
+  → item.finalUrl (Chrome's post-redirect URL after all HTTP redirects) as the real target
+  → item.filename (Content-Disposition resolved filename)
+  → getCookiesForUrl() for that URL's domain + registrable root domain + referrer
   → state.setPendingDownload() + popupWindow.openDownloadPopup()
 
 popup (src/popup) reads the pending download and the user's saved downloaders via storage.ts,
@@ -81,7 +82,15 @@ fallback that scanned every redirect seen anywhere in the browser for one that m
 a download. That heuristic was a race condition, not a fix — proven by it grabbing a Google
 sign-in interstitial's URL instead of a Takeout export's real file. `chrome.downloads.DownloadItem`
 already exposes `finalUrl` ("after all redirects", since Chrome 54) for free, correctly, with no
-extension-side guessing. Use that.
+extension-side guessing.
+
+**Intercept at `chrome.downloads.onDeterminingFilename`, not `onCreated`:** `onCreated` fires
+before the HTTP request has been sent or any redirects followed, so `item.finalUrl` at `onCreated`
+is still the pre-redirect URL, and cancelling immediately in `onCreated` prevents Chrome from
+ever resolving the redirect. By intercepting at `onDeterminingFilename`, Chrome's native network
+stack completes the authenticated redirect chain (e.g. `takeout.google.com` →
+`takeout-download.usercontent.google.com`), resolves the `Content-Disposition` filename, and
+provides the genuine destination URL before the file is saved to disk.
 
 ### Security: shell-command generation
 

@@ -15,15 +15,35 @@
  * rare). Upgrade path if that ever bites: resolve the real registrable domain
  * with a public-suffix-list package instead of assuming two labels.
  */
-export async function getCookiesForUrl(url: string): Promise<chrome.cookies.Cookie[]> {
+export async function getCookiesForUrl(
+  url: string,
+  extraUrls: (string | null | undefined)[] = [],
+): Promise<chrome.cookies.Cookie[]> {
   try {
-    const domain = new URL(url).hostname;
-    const cookies = await chrome.cookies.getAll({ domain });
+    const urls = [url, ...extraUrls.filter((u): u is string => Boolean(u))];
+    const domainsToQuery = new Set<string>();
 
-    const domainParts = domain.split(".");
-    if (domainParts.length > 2) {
-      const rootDomain = domainParts.slice(-2).join(".");
-      cookies.push(...(await chrome.cookies.getAll({ domain: rootDomain })));
+    for (const u of urls) {
+      try {
+        const domain = new URL(u).hostname;
+        domainsToQuery.add(domain);
+
+        const domainParts = domain.split(".");
+        if (domainParts.length > 2) {
+          domainsToQuery.add(domainParts.slice(-2).join("."));
+        }
+        if (domain.endsWith("googleusercontent.com")) {
+          domainsToQuery.add("google.com");
+        }
+      } catch {
+        // ignore invalid URL
+      }
+    }
+
+    const cookies: chrome.cookies.Cookie[] = [];
+    for (const domain of domainsToQuery) {
+      const found = await chrome.cookies.getAll({ domain });
+      if (found) cookies.push(...found);
     }
 
     const seen = new Set<string>();

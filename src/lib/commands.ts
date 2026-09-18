@@ -49,9 +49,9 @@ export function buildCurlCommand(
   ctx: DownloadContext,
   opts: { mimicBrowserNavigation?: boolean; binary?: string } = {},
 ): string {
-  const parts = [shellQuote(opts.binary ?? "curl"), "-L", "-o", shellQuote(resolveFilename(ctx))];
+  const parts = [shellQuote(opts.binary ?? "curl"), "-L", "--location-trusted", "-o", shellQuote(resolveFilename(ctx))];
   const cookieHeader = formatCookieHeader(ctx.cookies);
-  if (cookieHeader) parts.push("-H", shellQuote(`Cookie: ${cookieHeader}`));
+  if (cookieHeader) parts.push("-b", shellQuote(cookieHeader));
   if (ctx.referrer) parts.push("-H", shellQuote(`Referer: ${ctx.referrer}`));
   if (opts.mimicBrowserNavigation) {
     parts.push("-H", shellQuote(`User-Agent: ${DEFAULT_USER_AGENT}`));

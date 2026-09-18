@@ -52,3 +52,38 @@ test("getCookiesForUrl skips the extra lookup for an already-two-label domain", 
 
   assert.equal(calls, 1);
 });
+
+test("getCookiesForUrl reaches google.com root domain for googleusercontent.com", async () => {
+  const googleCookie = { name: "SID", value: "google-session", domain: "google.com" } as chrome.cookies.Cookie;
+  const userContentCookie = { name: "download_token", value: "xyz", domain: "storage.googleusercontent.com" } as chrome.cookies.Cookie;
+  stubCookiesApi({
+    "storage.googleusercontent.com": [userContentCookie],
+    "googleusercontent.com": [],
+    "google.com": [googleCookie],
+  });
+
+  const { getCookiesForUrl } = await import("./cookies.ts");
+  const cookies = await getCookiesForUrl("https://storage.googleusercontent.com/file.zip");
+
+  assert.equal(cookies.length, 2);
+  assert.ok(cookies.some((c) => c.name === "SID"));
+  assert.ok(cookies.some((c) => c.name === "download_token"));
+});
+
+test("getCookiesForUrl includes cookies from extraUrls (such as referrer)", async () => {
+  const referrerCookie = { name: "takeout_auth", value: "valid", domain: "takeout.google.com" } as chrome.cookies.Cookie;
+  const downloadCookie = { name: "dl", value: "1", domain: "takeout-download.usercontent.google.com" } as chrome.cookies.Cookie;
+  stubCookiesApi({
+    "takeout-download.usercontent.google.com": [downloadCookie],
+    "takeout.google.com": [referrerCookie],
+    "google.com": [],
+  });
+
+  const { getCookiesForUrl } = await import("./cookies.ts");
+  const cookies = await getCookiesForUrl("https://takeout-download.usercontent.google.com/dl", [
+    "https://takeout.google.com/takeout/downloads",
+  ]);
+
+  assert.ok(cookies.some((c) => c.name === "takeout_auth"));
+  assert.ok(cookies.some((c) => c.name === "dl"));
+});

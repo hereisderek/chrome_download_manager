@@ -21,6 +21,7 @@ async function routeDownload(choice: DownloadChoice, ctx: DownloadContext): Prom
       // This path was never actually broken; it uses Chrome's own request,
       // cookies included automatically, same as any normal download.
       allowDownload(ctx.url);
+      if (ctx.originalUrl) allowDownload(ctx.originalUrl);
       await chrome.downloads.download({ url: ctx.url, saveAs: false });
       return;
 
