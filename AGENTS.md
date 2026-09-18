@@ -32,7 +32,7 @@ src/
 │   ├── index.ts          # entry point: imports the others for their listener side effects, nothing else
 │   ├── downloadInterceptor.ts  # chrome.downloads.onCreated -> cancel + build a PendingDownload -> open popup
 │   ├── messageRouter.ts        # chrome.runtime.onMessage -> routes to a downloader, replies to popup
-│   ├── popupWindow.ts           # opens/closes the popup as a chrome.windows popup
+│   ├── popupWindow.ts           # opens/closes the popup; POPUP_MODE toggles window vs. in-page overlay
 │   ├── effects.ts                # downloadTextFile() (data: URL) + notify(), shared by several routes
 │   └── state.ts                   # the service worker's in-memory state (pendingDownload, bypass flag, allow-list)
 ├── content/            # injected at document_start; tracks modifier-key-held clicks to bypass interception
@@ -82,6 +82,40 @@ a download. That heuristic was a race condition, not a fix — proven by it grab
 sign-in interstitial's URL instead of a Takeout export's real file. `chrome.downloads.DownloadItem`
 already exposes `finalUrl` ("after all redirects", since Chrome 54) for free, correctly, with no
 extension-side guessing. Use that.
+
+### Popup presentation: window vs. overlay
+
+`popupWindow.ts`'s `POPUP_MODE` constant picks how the download-choice UI is shown:
+- **`"window"`** (default) — a `chrome.windows.create` popup. The original, reliable behavior.
+- **`"overlay"`** — injects the same `popup/index.html` as an iframe into the tab that triggered the
+  download (`content/index.ts` handles `showDownloadOverlay`/`hideDownloadOverlay` messages), so it's
+  an ordinary part of that page's DOM instead of a separate window type most tab-based tooling
+  (including other extensions) can't see into. Tried this specifically to make the popup
+  automatable for debugging. Real downsides found in practice: the host page's own
+  Permissions-Policy can veto `navigator.clipboard` inside the iframe (worked around with an
+  `execCommand('copy')` fallback in `popup/index.ts`, but that's not guaranteed everywhere either),
+  and it does nothing about — arguably makes more confusing — an unrelated race against Chrome's
+  own "ask where to save each file" dialog (see below). Kept both implementations so this is a
+  one-line flip to revisit, not a rewrite.
+
+### Known Chrome-level constraints (not bugs to "fix")
+
+- **"Ask where to save each file before downloading" races our interception.** With that Chrome
+  setting on, Chrome's native save-location picker is part of creating the download and isn't
+  guaranteed to wait for an extension's `chrome.downloads.cancel()` — especially after the service
+  worker was idle and needs to wake up first. If interception seems to randomly not happen, check
+  this setting before assuming a code regression.
+- **`chrome.downloads.download()` rejects "unsafe" headers.** `Referer`, `Cookie`, `Origin`, `Host`,
+  and others from the forbidden-header list throw `Unsafe request header name` if passed in
+  `headers`. The "chrome" routing choice never needs them anyway — it's a real browser request with
+  real cookies attached automatically.
+- **Some Google endpoints intermittently require a real browser, not just correct cookies.**
+  Google Takeout's bulk-export host sometimes (not always — it's a per-request risk decision on
+  Google's side) interposes a re-authentication interstitial
+  (`accounts.google.com/.../interstitial/...`) that a plain `curl`/`wget` process cannot pass,
+  while Chrome's own downloader can. `lib/commands.ts`'s `isReauthCheckpoint()` detects this and
+  surfaces a warning in the popup rather than silently handing over a command that can't work for
+  that specific attempt.
 
 ### Security: shell-command generation
 

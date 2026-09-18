@@ -178,6 +178,7 @@ Generated commands are built from data a remote site controls (URL, filename, co
 - Check the extension is enabled in `chrome://extensions/`
 - Reload it from that page
 - Confirm the service worker is running: Details → "Inspect views: service worker"
+- Turn off Chrome's **"Ask where to save each file before downloading"** setting (`chrome://settings/downloads`) if interception seems to work sometimes but not others — that native save-location prompt isn't guaranteed to wait for an extension to cancel the download first
 
 ### Cookies not working
 - Some sites use authentication schemes that don't translate to a simple cookie header

@@ -1,7 +1,7 @@
 import type { PendingDownload } from "../lib/types.ts";
 
 let pendingDownload: PendingDownload | null = null;
-let popupTabId: number | null = null;
+let popupId: number | null = null;
 let bypassNextDownload = false;
 const allowedDownloadUrls = new Set<string>();
 
@@ -13,13 +13,14 @@ export function setPendingDownload(download: PendingDownload | null): void {
   pendingDownload = download;
 }
 
-/** The tab the download-choice overlay is currently injected into, if any. */
-export function getPopupTabId(): number | null {
-  return popupTabId;
+/** The id of whatever the download-choice UI is currently open in - a
+ *  window id in "window" mode, a tab id in "overlay" mode (see popupWindow.ts). */
+export function getPopupId(): number | null {
+  return popupId;
 }
 
-export function setPopupTabId(id: number | null): void {
-  popupTabId = id;
+export function setPopupId(id: number | null): void {
+  popupId = id;
 }
 
 export function setBypassNextDownload(bypass: boolean): void {
