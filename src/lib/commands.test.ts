@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCurlCommand, buildWgetCommand, buildSshCommand, isReauthCheckpoint } from "./commands.ts";
+import { buildCurlCommand, buildWgetCommand, buildSshCommand, isReauthCheckpoint, renderCommandTemplate } from "./commands.ts";
 import { shellQuote } from "./shellQuote.ts";
 import type { DownloadContext } from "./types.ts";
 
@@ -91,3 +91,29 @@ test("buildSshCommand nests an already-quoted inner command safely", () => {
   // The inner single quotes must have been escaped, not left to close the outer quote early.
   assert.ok(ssh.includes("'\\''"));
 });
+
+test("renderCommandTemplate replaces core placeholders with auto-quoting", async () => {
+  const template = "aria2c -x 16 -o <filename> --header=\"Cookie: <cookie>\" <url>";
+  const result = await renderCommandTemplate(template, ctx({ filename: "My Archive (1).zip" }));
+  assert.equal(
+    result,
+    "aria2c -x 16 -o 'My Archive (1).zip' --header=\"Cookie: session=abc123\" 'https://example.com/file.zip'",
+  );
+});
+
+test("renderCommandTemplate supports flexible matching and all placeholder types", async () => {
+  const template = "custom-tool --url={download link} --file={output file name} --host=<host> --ref=<referer> <browser_headers>";
+  const result = await renderCommandTemplate(template, ctx({ url: "https://dl.example.com/item.bin", filename: "item.bin" }));
+  assert.ok(result.includes("--url='https://dl.example.com/item.bin'"));
+  assert.ok(result.includes("--file='item.bin'"));
+  assert.ok(result.includes("--host='dl.example.com'"));
+  assert.ok(result.includes("--ref='https://example.com/page'"));
+  assert.ok(result.includes("-H 'Sec-Fetch-Mode: navigate'"));
+});
+
+test("renderCommandTemplate compresses cookies when compressCookies option is true", async () => {
+  const template = "curl -o <filename> -b <cookie> <url>";
+  const result = await renderCommandTemplate(template, ctx(), { compressCookies: true });
+  assert.match(result, /-b "\$\(printf '%s' '[A-Za-z0-9+/=]+' \| base64 -d \| gzip -dc\)"/);
+});
+

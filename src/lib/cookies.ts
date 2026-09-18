@@ -143,14 +143,32 @@ export function formatCookiesNetscape(cookies: chrome.cookies.Cookie[]): string 
  * Uses native Web Streams CompressionStream available in modern browsers and Node 18+.
  */
 export async function compressCookieHeader(cookieHeader: string): Promise<string> {
-  const stream = new Blob([cookieHeader]).stream().pipeThrough(new CompressionStream("gzip"));
-  const buffer = await new Response(stream).arrayBuffer();
-  const bytes = new Uint8Array(buffer);
+  const cs = new CompressionStream("gzip");
+  const writer = cs.writable.getWriter();
+  writer.write(new TextEncoder().encode(cookieHeader));
+  writer.close();
+  const reader = cs.readable.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      totalLength += value.length;
+    }
+  }
+  const concatenated = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    concatenated.set(chunk, offset);
+    offset += chunk.length;
+  }
   let binary = "";
   const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  for (let i = 0; i < concatenated.length; i += chunkSize) {
+    binary += String.fromCharCode(...concatenated.subarray(i, i + chunkSize));
   }
-  return typeof btoa !== "undefined" ? btoa(binary) : Buffer.from(buffer).toString("base64");
+  return typeof btoa !== "undefined" ? btoa(binary) : Buffer.from(concatenated).toString("base64");
 }
 

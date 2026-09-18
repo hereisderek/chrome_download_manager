@@ -1,8 +1,10 @@
-import { getLocalDownloaders, getRemoteDownloaders } from "../lib/storage.ts";
+import { getCustomCommands, getLocalDownloaders, getRemoteDownloaders } from "../lib/storage.ts";
 import { ICON_ALERT_CIRCLE, ICON_CHECK_CIRCLE, ICON_CLIPBOARD, ICON_CLOUD_DOWNLOAD, ICON_FILE, ICON_SERVER, ICON_TERMINAL } from "../lib/icons.ts";
 import { sendMessage } from "../lib/messages.ts";
-import type { ExportTool } from "../lib/messages.ts";
+import { buildCurlCommand, buildWgetCommand, isReauthCheckpoint, renderCommandTemplate } from "../lib/commands.ts";
+import { compressCookieHeader, formatCookieHeader } from "../lib/cookies.ts";
 import type {
+  CustomCommandTemplate,
   DownloadChoice,
   LocalDownloaderConfig,
   LocalDownloaderType,
@@ -109,6 +111,30 @@ function noConfigMessage(): HTMLParagraphElement {
   return el("p", { className: "no-config" }, ["Nothing configured yet. ", link]);
 }
 
+function createCustomTemplateRow(
+  tmpl: CustomCommandTemplate,
+  onClick: () => void,
+): HTMLButtonElement {
+  const row = el("button", { type: "button", className: "option-row" }, [
+    el("span", { className: "option-icon" }, [icon(ICON_CLIPBOARD)]),
+    el("span", { className: "option-text" }, [
+      el("strong", {}, [tmpl.name]),
+      el("small", {}, [tmpl.description || tmpl.template]),
+    ]),
+  ]);
+  row.addEventListener("click", onClick);
+  return row;
+}
+
+function noCustomConfigMessage(): HTMLParagraphElement {
+  const link = el("a", { href: "#" }, ["+ Add command template"]);
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    chrome.runtime.openOptionsPage();
+  });
+  return el("p", { className: "no-config" }, ["No custom templates yet. ", link]);
+}
+
 async function runChoice(choice: DownloadChoice): Promise<void> {
   setBusy(true);
   const response = await sendMessage({ action: "handleDownload", choice });
@@ -121,41 +147,68 @@ async function runChoice(choice: DownloadChoice): Promise<void> {
   }
 }
 
-let currentExportTool: ExportTool | null = null;
+type ActiveExport =
+  | { kind: "curl" }
+  | { kind: "wget" }
+  | { kind: "custom"; template: CustomCommandTemplate };
+
+let activeExport: ActiveExport | null = null;
 let currentExportCommand = "";
+let pendingDownload: PendingDownload | null = null;
 
 async function updateExportCommand(): Promise<void> {
-  if (!currentExportTool) return;
+  if (!activeExport || !pendingDownload) return;
   const checkbox = document.getElementById("compressCookiesCheckbox") as HTMLInputElement | null;
   const compressCookies = checkbox?.checked ?? false;
 
-  const response = await sendMessage({
-    action: "exportCommand",
-    tool: currentExportTool,
-    compressCookies,
-  });
-  if (!response.success) {
-    showMessage("error", response.error);
-    return;
+  let command = "";
+  if (activeExport.kind === "curl" || activeExport.kind === "wget") {
+    let compressedCookie: string | undefined;
+    if (compressCookies && pendingDownload.cookies.length > 0) {
+      const header = formatCookieHeader(pendingDownload.cookies);
+      if (header) compressedCookie = await compressCookieHeader(header);
+    }
+    const opts = { mimicBrowserNavigation: true, compressedCookie };
+    command = activeExport.kind === "curl"
+      ? buildCurlCommand(pendingDownload, opts)
+      : buildWgetCommand(pendingDownload, opts);
+  } else {
+    command = await renderCommandTemplate(activeExport.template.template, pendingDownload, {
+      compressCookies,
+    });
   }
 
-  currentExportCommand = response.command ?? "";
+  currentExportCommand = command;
   document.getElementById("commandText")!.textContent = currentExportCommand;
 
+  const warning = isReauthCheckpoint(pendingDownload.url)
+    ? "Google is asking to re-verify this session before releasing the file. That step needs a real browser to pass - this command likely won't work. Try \"Chrome downloader\" instead."
+    : "";
   const warningEl = document.getElementById("commandWarning")!;
-  warningEl.textContent = response.warning ?? "";
-  warningEl.classList.toggle("hidden", !response.warning);
+  warningEl.textContent = warning;
+  warningEl.classList.toggle("hidden", !warning);
 }
 
-async function showExportCommand(tool: ExportTool): Promise<void> {
-  currentExportTool = tool;
-  setBusy(true);
-  await updateExportCommand();
-  setBusy(false);
-
+function showCommandPanel(): void {
   const panel = document.getElementById("commandPanel")!;
   panel.classList.remove("hidden");
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function showBuiltinCommand(tool: "curl" | "wget"): Promise<void> {
+  activeExport = { kind: tool };
+  setBusy(true);
+  await updateExportCommand();
+  setBusy(false);
+  showCommandPanel();
+}
+
+async function showCustomCommand(template: CustomCommandTemplate): Promise<void> {
+  activeExport = { kind: "custom", template };
+  setBusy(true);
+  await updateExportCommand();
+  setBusy(false);
+  showCommandPanel();
 }
 
 /** The async Clipboard API can be vetoed by the host page's Permissions-Policy
@@ -192,6 +245,16 @@ async function copyExportCommand(): Promise<void> {
 }
 
 async function loadDownloaderConfigs(): Promise<void> {
+  const customContainer = document.getElementById("customCommands")!;
+  const custom = (await getCustomCommands()).filter((c) => c.enabled);
+  customContainer.replaceChildren(
+    ...(custom.length
+      ? custom.map((tmpl) =>
+          createCustomTemplateRow(tmpl, () => void showCustomCommand(tmpl)),
+        )
+      : [noCustomConfigMessage()]),
+  );
+
   const localContainer = document.getElementById("localDownloaders")!;
   const local = (await getLocalDownloaders()).filter((d) => d.enabled);
   localContainer.replaceChildren(
@@ -219,12 +282,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     showMessage("error", "No pending download found");
     return;
   }
+  pendingDownload = response.download;
   displayDownloadInfo(response.download);
   await loadDownloaderConfigs();
 
   document.getElementById("defaultBtn")!.addEventListener("click", () => void runChoice({ kind: "chrome" }));
-  document.getElementById("exportCurlBtn")!.addEventListener("click", () => void showExportCommand("curl"));
-  document.getElementById("exportWgetBtn")!.addEventListener("click", () => void showExportCommand("wget"));
+  document.getElementById("exportCurlBtn")!.addEventListener("click", () => void showBuiltinCommand("curl"));
+  document.getElementById("exportWgetBtn")!.addEventListener("click", () => void showBuiltinCommand("wget"));
+  document.getElementById("configureCommandsLink")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    chrome.runtime.openOptionsPage();
+  });
   document.getElementById("copyCommandBtn")!.addEventListener("click", () => void copyExportCommand());
   document.getElementById("closeCommandBtn")!.addEventListener("click", () => {
     document.getElementById("commandPanel")!.classList.add("hidden");

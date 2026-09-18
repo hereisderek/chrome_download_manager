@@ -1,4 +1,4 @@
-import { formatCookieHeader } from "./cookies.ts";
+import { compressCookieHeader, formatCookieHeader } from "./cookies.ts";
 import { shellQuote } from "./shellQuote.ts";
 import type { DownloadContext, LocalDownloaderConfig } from "./types.ts";
 
@@ -130,3 +130,119 @@ export function isReauthCheckpoint(url: string): boolean {
     return false;
   }
 }
+
+export interface RenderTemplateOptions {
+  compressCookies?: boolean;
+  compressedCookie?: string;
+}
+
+/**
+ * Renders a command template by replacing placeholders (<url>, <cookie>, <filename>,
+ * <user_agent>, <host>, <browser_headers>, <referer>) with quote-aware escaping.
+ * Supports flexible matching (<placeholder>, {placeholder}, spaces/hyphens/underscores).
+ */
+export async function renderCommandTemplate(
+  template: string,
+  ctx: DownloadContext,
+  opts: RenderTemplateOptions = {},
+): Promise<string> {
+  const placeholderRegex = /(?:<|\{)([\w\s-]+)(?:>|\})/gi;
+  let result = "";
+  let lastIndex = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+
+  const url = ctx.url;
+  const filename = resolveFilename(ctx);
+  const userAgent = getUserAgent();
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    host = "";
+  }
+  const referer = ctx.referrer ?? "";
+
+  const headers = browserNavigationHeaders(ctx);
+  const isWget = template.toLowerCase().includes("wget");
+  const browserHeaders = headers
+    .map(([n, v]) => (isWget ? `--header=${shellQuote(`${n}: ${v}`)}` : `-H ${shellQuote(`${n}: ${v}`)}`))
+    .join(" ");
+
+  const rawCookie = formatCookieHeader(ctx.cookies);
+  let compressedCookieVal = opts.compressedCookie;
+  if (opts.compressCookies && !compressedCookieVal && rawCookie) {
+    compressedCookieVal = await compressCookieHeader(rawCookie);
+  }
+
+  let match: RegExpExecArray | null;
+  while ((match = placeholderRegex.exec(template)) !== null) {
+    const matchStart = match.index;
+    const matchEnd = match.index + match[0].length;
+
+    for (let i = lastIndex; i < matchStart; i++) {
+      const char = template[i];
+      if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+      } else if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+      }
+    }
+
+    result += template.slice(lastIndex, matchStart);
+    const placeholderName = match[1] ?? "";
+    const key = placeholderName.toLowerCase().replace(/[\s_-]+/g, "");
+    const isInsideQuotes = inSingleQuote || inDoubleQuote;
+
+    let val = "";
+    let isFlagList = false;
+    let isAlreadyQuotedExpr = false;
+
+    if (key === "url" || key === "downloadlink") {
+      val = url;
+    } else if (key === "filename" || key === "outputfilename") {
+      val = filename;
+    } else if (key === "useragent") {
+      val = userAgent;
+    } else if (key === "host" || key === "domain" || key === "hostname") {
+      val = host;
+    } else if (key === "referer" || key === "referrer") {
+      val = referer;
+    } else if (key === "browserheaders" || key === "headers") {
+      val = browserHeaders;
+      isFlagList = true;
+    } else if (key === "cookie" || key === "cookies") {
+      if (compressedCookieVal) {
+        if (isInsideQuotes) {
+          val = `$(printf '%s' ${shellQuote(compressedCookieVal)} | base64 -d | gzip -dc)`;
+        } else {
+          val = `"$(printf '%s' ${shellQuote(compressedCookieVal)} | base64 -d | gzip -dc)"`;
+        }
+        isAlreadyQuotedExpr = true;
+      } else {
+        val = rawCookie;
+      }
+    } else {
+      // Unrecognized placeholder: leave untouched
+      val = match[0];
+      isAlreadyQuotedExpr = true;
+    }
+
+    if (isFlagList || isAlreadyQuotedExpr) {
+      result += val;
+    } else if (isInsideQuotes) {
+      if (inSingleQuote) {
+        result += val.replace(/'/g, "'\\''");
+      } else {
+        result += val.replace(/(["\\$`])/g, "\\$1");
+      }
+    } else {
+      result += shellQuote(val);
+    }
+
+    lastIndex = matchEnd;
+  }
+  result += template.slice(lastIndex);
+  return result;
+}
+

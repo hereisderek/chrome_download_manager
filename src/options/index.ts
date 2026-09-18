@@ -1,13 +1,22 @@
 import {
+  getCustomCommands,
   getLocalDownloaders,
   getRemoteDownloaders,
+  setCustomCommands,
   setLocalDownloaders,
   setRemoteDownloaders,
 } from "../lib/storage.ts";
-import type { LocalDownloaderConfig, LocalDownloaderType, RemoteDownloaderConfig, RemoteDownloaderType } from "../lib/types.ts";
+import type {
+  CustomCommandTemplate,
+  LocalDownloaderConfig,
+  LocalDownloaderType,
+  RemoteDownloaderConfig,
+  RemoteDownloaderType,
+} from "../lib/types.ts";
 
 let localDownloaders: LocalDownloaderConfig[] = [];
 let remoteDownloaders: RemoteDownloaderConfig[] = [];
+let customCommands: CustomCommandTemplate[] = [];
 
 function $<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -255,13 +264,116 @@ async function deleteRemoteDownloader(index: number): Promise<void> {
   showStatusMessage("Remote downloader deleted");
 }
 
+// ---------- custom command form & rendering ----------
+
+function createCustomCommandCard(
+  config: CustomCommandTemplate,
+  index: number,
+): HTMLDivElement {
+  const body: HTMLElement[] = [];
+  if (config.description) body.push(el("p", {}, [config.description]));
+  body.push(el("p", { className: "path" }, [el("strong", {}, ["Template: "]), config.template]));
+
+  const editBtn = el("button", { type: "button", className: "edit-btn" }, ["Edit"]);
+  const deleteBtn = el("button", { type: "button", className: "delete-btn" }, ["Delete"]);
+  const toggle = el("input", { type: "checkbox", className: "toggle-enabled", checked: config.enabled });
+
+  editBtn.addEventListener("click", () => editCustomCommand(index));
+  deleteBtn.addEventListener("click", () => void deleteCustomCommand(index));
+  toggle.addEventListener("change", () => {
+    config.enabled = toggle.checked;
+    void saveCustomCommands();
+  });
+
+  const card = el("div", { className: `downloader-card${config.enabled ? "" : " disabled"}` }, [
+    el("div", { className: "card-header" }, [
+      el("h3", {}, [config.name]),
+      el("span", { className: "type-badge" }, ["template"]),
+    ]),
+    el("div", { className: "card-body" }, body),
+    el("div", { className: "card-actions" }, [
+      editBtn,
+      deleteBtn,
+      el("label", { className: "toggle-label" }, [toggle, "Enabled"]),
+    ]),
+  ]);
+  return card;
+}
+
+function renderCustomCommands(): void {
+  const container = $("customCommandsList");
+  container.replaceChildren(
+    ...(customCommands.length
+      ? customCommands.map((c, i) => createCustomCommandCard(c, i))
+      : [el("p", { className: "empty-message" }, ["No custom command templates configured yet."])]),
+  );
+}
+
+async function saveCustomCommands(): Promise<void> {
+  await setCustomCommands(customCommands);
+}
+
+function showCustomForm(data: CustomCommandTemplate | null, index: number): void {
+  $<HTMLFormElement>("customForm").reset();
+  if (data) {
+    $<HTMLInputElement>("customName").value = data.name;
+    $<HTMLTextAreaElement>("customTemplate").value = data.template;
+    $<HTMLInputElement>("customDescription").value = data.description ?? "";
+    $<HTMLInputElement>("customEnabled").checked = data.enabled;
+    $("customFormTitle").textContent = "Edit Command Template";
+  } else {
+    $("customFormTitle").textContent = "Add Command Template";
+  }
+  $<HTMLInputElement>("customIndex").value = String(index);
+  $("customCommandForm").classList.remove("hidden");
+  $("customCommandForm").scrollIntoView({ behavior: "smooth" });
+}
+
+function hideCustomForm(): void {
+  $("customCommandForm").classList.add("hidden");
+  $<HTMLFormElement>("customForm").reset();
+}
+
+async function saveCustomCommand(): Promise<void> {
+  const index = Number($<HTMLInputElement>("customIndex").value);
+  const command: CustomCommandTemplate = {
+    id: index >= 0 && customCommands[index] ? customCommands[index].id : `custom_${Date.now()}`,
+    name: $<HTMLInputElement>("customName").value.trim(),
+    template: $<HTMLTextAreaElement>("customTemplate").value.trim(),
+    description: $<HTMLInputElement>("customDescription").value.trim() || undefined,
+    enabled: $<HTMLInputElement>("customEnabled").checked,
+  };
+
+  if (index === -1) customCommands.push(command);
+  else customCommands[index] = command;
+
+  await saveCustomCommands();
+  hideCustomForm();
+  renderCustomCommands();
+  showStatusMessage("Command template saved successfully");
+}
+
+function editCustomCommand(index: number): void {
+  showCustomForm(customCommands[index] ?? null, index);
+}
+
+async function deleteCustomCommand(index: number): Promise<void> {
+  if (!confirm("Are you sure you want to delete this command template?")) return;
+  customCommands.splice(index, 1);
+  await saveCustomCommands();
+  renderCustomCommands();
+  showStatusMessage("Command template deleted");
+}
+
 // ---------- wiring ----------
 
 document.addEventListener("DOMContentLoaded", async () => {
   localDownloaders = await getLocalDownloaders();
   remoteDownloaders = await getRemoteDownloaders();
+  customCommands = await getCustomCommands();
   renderLocalDownloaders();
   renderRemoteDownloaders();
+  renderCustomCommands();
 
   document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab!));
@@ -283,4 +395,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   $<HTMLSelectElement>("remoteType").addEventListener("change", (event) => {
     updateRemoteFields((event.target as HTMLSelectElement).value as RemoteDownloaderType);
   });
+
+  $("addCustomBtn").addEventListener("click", () => showCustomForm(null, -1));
+  $("cancelCustomBtn").addEventListener("click", hideCustomForm);
+  $<HTMLFormElement>("customForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    void saveCustomCommand();
+  });
+
+  if (location.hash === "#custom" || new URLSearchParams(location.search).get("tab") === "custom") {
+    switchTab("custom");
+  }
 });
+

@@ -16,6 +16,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="local">Local Downloaders</button>
       <button class="tab-btn" data-tab="remote">Remote Downloaders</button>
+      <button class="tab-btn" data-tab="custom">Command Templates</button>
       <button class="tab-btn" data-tab="about">About</button>
     </div>
 
@@ -154,6 +155,105 @@
           <div class="form-actions">
             <button type="submit" class="save-btn">Save</button>
             <button type="button" id="cancelRemoteBtn" class="cancel-btn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="customTab" class="tab-content">
+      <p class="description">Create custom export command templates for tools like aria2c, axel, yt-dlp, or custom scripts. Saved templates appear in the download popup for quick one-click export.</p>
+
+      <div class="placeholder-reference">
+        <h3>Supported Placeholders</h3>
+        <table class="placeholder-table">
+          <thead>
+            <tr>
+              <th>Placeholder</th>
+              <th>Description</th>
+              <th>Auto-quoting</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>&lt;url&gt;</code></td>
+              <td>Target download link (destination URL after redirects)</td>
+              <td>Auto-quoted with single quotes if not already quoted</td>
+            </tr>
+            <tr>
+              <td><code>&lt;cookie&gt;</code></td>
+              <td>Cookies for the download host (supports "Compress cookies" toggle)</td>
+              <td>Auto-quoted or compressed command substitution</td>
+            </tr>
+            <tr>
+              <td><code>&lt;filename&gt;</code></td>
+              <td>Resolved output file name (from server headers or URL)</td>
+              <td>Auto-quoted with single quotes if not already quoted</td>
+            </tr>
+            <tr>
+              <td><code>&lt;user_agent&gt;</code></td>
+              <td>Browser User-Agent string</td>
+              <td>Auto-quoted with single quotes if not already quoted</td>
+            </tr>
+            <tr>
+              <td><code>&lt;host&gt;</code></td>
+              <td>Hostname / domain of download server</td>
+              <td>Auto-quoted with single quotes if not already quoted</td>
+            </tr>
+            <tr>
+              <td><code>&lt;browser_headers&gt;</code></td>
+              <td>Standard browser navigation headers (Sec-Fetch-*, Upgrade-Insecure-Requests)</td>
+              <td>Expanded as individual <code>-H '...'</code> or <code>--header='...'</code> flags</td>
+            </tr>
+            <tr>
+              <td><code>&lt;referer&gt;</code></td>
+              <td>Originating page URL</td>
+              <td>Auto-quoted with single quotes if not already quoted</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="placeholder-tip"><em>Tip: Flexible matching is supported &mdash; you can also use curly braces like <code>{url}</code>, <code>&lt;download link&gt;</code>, or <code>&lt;output file name&gt;</code>.</em></p>
+      </div>
+
+      <div class="template-example">
+        <h4>Example Command:</h4>
+        <code>aria2c -x 16 -s 16 -j 16 -o &lt;filename&gt; --header="Cookie: &lt;cookie&gt;" --header="User-Agent: &lt;user_agent&gt;" &lt;url&gt;</code>
+      </div>
+
+      <div id="customCommandsList"></div>
+
+      <button id="addCustomBtn" class="add-btn" type="button">+ Add Command Template</button>
+
+      <div id="customCommandForm" class="form-section hidden">
+        <h3 id="customFormTitle">Add/Edit Command Template</h3>
+        <form id="customForm">
+          <input type="hidden" id="customIndex" value="-1">
+
+          <div class="form-group">
+            <label for="customName">Name</label>
+            <input type="text" id="customName" required placeholder="e.g., aria2c multi-connection">
+          </div>
+
+          <div class="form-group">
+            <label for="customTemplate">Command Template</label>
+            <textarea id="customTemplate" required rows="3" placeholder="e.g., aria2c -x 16 -s 16 -o &lt;filename&gt; --header=&quot;Cookie: &lt;cookie&gt;&quot; &lt;url&gt;"></textarea>
+            <small>Use placeholders like &lt;url&gt;, &lt;cookie&gt;, &lt;filename&gt;, &lt;user_agent&gt;, &lt;host&gt;, &lt;browser_headers&gt;</small>
+          </div>
+
+          <div class="form-group">
+            <label for="customDescription">Description (optional)</label>
+            <input type="text" id="customDescription" placeholder="Brief description">
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="customEnabled" checked>
+              Enabled
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="save-btn">Save</button>
+            <button type="button" id="cancelCustomBtn" class="cancel-btn">Cancel</button>
           </div>
         </form>
       </div>

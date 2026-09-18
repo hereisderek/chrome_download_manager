@@ -45,3 +45,12 @@ export type DownloadChoice =
   | { kind: "chrome" }
   | { kind: "local"; config: LocalDownloaderConfig }
   | { kind: "remote"; config: RemoteDownloaderConfig };
+
+export interface CustomCommandTemplate {
+  id: string;
+  name: string;
+  template: string;
+  description?: string;
+  enabled: boolean;
+}
+
