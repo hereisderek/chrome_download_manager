@@ -16,8 +16,8 @@ function ctx(overrides: Partial<DownloadContext> = {}): DownloadContext {
 
 test("buildCurlCommand includes cookie header and output flag", () => {
   const cmd = buildCurlCommand(ctx());
-  assert.match(cmd, /^'curl' -L -o 'file\.zip'/);
-  assert.match(cmd, /-H 'Cookie: session=abc123'/);
+  assert.match(cmd, /^'curl' -L --location-trusted -o 'file\.zip'/);
+  assert.match(cmd, /-b 'session=abc123'/);
   assert.match(cmd, /'https:\/\/example\.com\/file\.zip'$/);
 });
 
@@ -26,7 +26,7 @@ test("buildCurlCommand neutralizes a malicious filename instead of breaking out"
   const cmd = buildCurlCommand(ctx({ filename: malicious }));
   // The -o argument must be exactly the escaped filename - single-quoted end
   // to end, so the shell never leaves the quoted string to run `rm`.
-  assert.equal(cmd, `'curl' -L -o ${shellQuote(malicious)} -H 'Cookie: session=abc123' -H 'Referer: https://example.com/page' 'https://example.com/file.zip'`);
+  assert.equal(cmd, `'curl' -L --location-trusted -o ${shellQuote(malicious)} -b 'session=abc123' -H 'Referer: https://example.com/page' 'https://example.com/file.zip'`);
 });
 
 test("buildCurlCommand falls back to a filename derived from the URL", () => {

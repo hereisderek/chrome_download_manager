@@ -52,3 +52,45 @@ test("getCookiesForUrl skips the extra lookup for an already-two-label domain", 
 
   assert.equal(calls, 1);
 });
+
+test("getCookiesForUrl reaches google.com root domain for googleusercontent.com", async () => {
+  const googleCookie = { name: "SID", value: "google-session", domain: "google.com" } as chrome.cookies.Cookie;
+  const userContentCookie = { name: "download_token", value: "xyz", domain: "storage.googleusercontent.com" } as chrome.cookies.Cookie;
+  stubCookiesApi({
+    "storage.googleusercontent.com": [userContentCookie],
+    "googleusercontent.com": [],
+    "google.com": [googleCookie],
+  });
+
+  const { getCookiesForUrl } = await import("./cookies.ts");
+  const cookies = await getCookiesForUrl("https://storage.googleusercontent.com/file.zip");
+
+  assert.equal(cookies.length, 2);
+  assert.ok(cookies.some((c) => c.name === "SID"));
+  assert.ok(cookies.some((c) => c.name === "download_token"));
+});
+
+test("getCookiesForUrl excludes sibling subdomain cookies and deduplicates by name", async () => {
+  const mailOsid = { name: "OSID", value: "mail-osid", domain: "mail.google.com" } as chrome.cookies.Cookie;
+  const rootOsid = { name: "OSID", value: "root-osid", domain: ".google.com" } as chrome.cookies.Cookie;
+  const takeoutOsid = { name: "OSID", value: "takeout-osid", domain: "takeout-download.usercontent.google.com" } as chrome.cookies.Cookie;
+  const gmailCookie = { name: "GMAIL_AT", value: "abc", domain: "mail.google.com" } as chrome.cookies.Cookie;
+  const sidCookie = { name: "SID", value: "session-sid", domain: ".google.com" } as chrome.cookies.Cookie;
+
+  stubCookiesApi({
+    "takeout-download.usercontent.google.com": [takeoutOsid],
+    "google.com": [mailOsid, rootOsid, gmailCookie, sidCookie],
+  });
+
+  const { getCookiesForUrl } = await import("./cookies.ts");
+  const cookies = await getCookiesForUrl("https://takeout-download.usercontent.google.com/dl");
+
+  // mail.google.com cookies (mailOsid, gmailCookie) must NOT be included
+  assert.ok(!cookies.some((c) => c.name === "GMAIL_AT"));
+  // Only one OSID must remain, and it must be the more specific takeoutOsid
+  const osids = cookies.filter((c) => c.name === "OSID");
+  assert.equal(osids.length, 1);
+  assert.equal(osids[0]?.value, "takeout-osid");
+  // root SID must be present
+  assert.ok(cookies.some((c) => c.name === "SID"));
+});

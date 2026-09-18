@@ -7,7 +7,7 @@ import type { DownloadContext, RemoteDownloaderConfig } from "../lib/types.ts";
 export function buildSshCurlCommand(config: RemoteDownloaderConfig, ctx: DownloadContext): string {
   if (!config.sshHost) throw new Error("Remote downloader is missing an SSH host");
   const target = config.sshUser ? `${config.sshUser}@${config.sshHost}` : config.sshHost;
-  return buildSshCommand(target, buildCurlCommand(ctx));
+  return buildSshCommand(target, buildCurlCommand(ctx, { mimicBrowserNavigation: true }));
 }
 
 export async function sendToQBittorrent(config: RemoteDownloaderConfig, ctx: DownloadContext): Promise<void> {

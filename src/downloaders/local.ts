@@ -8,8 +8,8 @@ export function buildLocalCommand(config: LocalDownloaderConfig, ctx: DownloadCo
     case "idm":
       return buildLocalGuiDownloaderCommand(config, ctx);
     case "curl":
-      return buildCurlCommand(ctx, { binary: config.path || "curl" });
+      return buildCurlCommand(ctx, { binary: config.path || "curl", mimicBrowserNavigation: true });
     case "wget":
-      return buildWgetCommand(ctx, { binary: config.path || "wget" });
+      return buildWgetCommand(ctx, { binary: config.path || "wget", mimicBrowserNavigation: true });
   }
 }
